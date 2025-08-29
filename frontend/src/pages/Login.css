@@ -1,0 +1,141 @@
+/* Full page layout */
+.login-page {
+  display: flex;
+  height: 100vh;
+  background: linear-gradient(to right, #90cdf4, #b794f4);
+  font-family: Arial, sans-serif;
+  box-sizing: border-box;
+}
+
+/* Left side: Login card */
+.login-left {
+  flex: 1;                      /* take 50% width */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+}
+
+.login-left .login-card {
+  background-color: white;
+  padding: 40px;
+  border-radius: 16px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+  width: 100%;
+  max-width: 400px;             /* nice fixed size */
+  text-align: center;
+}
+
+/* Form */
+.login-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  text-align: left;
+}
+
+/* Inputs */
+.login-card input {
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Login button */
+.login-card button[type="submit"] {
+  padding: 12px;
+  background: linear-gradient(to right, #667eea, #764ba2);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.login-card button[type="submit"]:hover {
+  background: linear-gradient(to right, #5a67d8, #6b46c1);
+}
+
+/* Gmail button */
+.gmail-login {
+  margin-top: 15px;
+  padding: 10px 16px;
+  width: 100%;
+  background: #db4437; /* Gmail red */
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s ease-in-out;
+}
+
+.gmail-login:hover {
+  background: #c23321;
+}
+
+/* Sign In button */
+.signin-btn {
+  margin-top: 10px;
+  padding: 10px 16px;
+  width: 100%;
+  background: #4a90e2; /* blue */
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s ease-in-out;
+}
+
+.signin-btn:hover {
+  background: #357abd;
+}
+
+
+/* Messages */
+.error { color: red; font-size: 0.9rem; }
+.success { color: green; font-size: 0.9rem; }
+
+/* Right side: Image */
+.login-right {
+  flex: 1;                       /* take 50% width */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+}
+
+.login-right img {
+  max-width: 70%;                /* fills most of right side */
+  height: auto;
+  object-fit: contain;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .login-page {
+    flex-direction: column;
+    padding: 20px;
+  }
+
+  .login-left, .login-right {
+    flex: none;
+    width: 100%;
+  }
+
+  .login-left .login-card {
+    max-width: 90%;
+  }
+
+  .login-right img {
+    max-width: 200px;
+    margin-top: 20px;
+  }
+}
