@@ -5,11 +5,12 @@ import ProjectFlow from "./pages/ProjectFlow";
 import LeftPanel from "./pages/LeftPanel";
 import LoginPage from "./pages/Login";
 import { auth } from "./auth";
+import FlowAnalysis from "./pages/FlowAnalysis";
 
-// ✅ Pull API base from .env (set VITE_API_BASE=http://localhost:5001)
+// Pull API base from .env (VITE_API_BASE=http://localhost:5001)
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5001";
 
-// ✅ BusinessList with loading+error and .env-based URL
+/** Demo page: lists business processes from Mongo */
 function BusinessList() {
   const [processes, setProcesses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,38 +18,28 @@ function BusinessList() {
 
   useEffect(() => {
     let ignore = false;
-
-    async function load() {
-      setLoading(true);
-      setError(null);
+    (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/business`, {
-          headers: { "Content-Type": "application/json" },
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data?.message || `HTTP ${res.status}`);
-        }
-        const data = await res.json();
-        if (!ignore) setProcesses(Array.isArray(data) ? data : []);
+        setLoading(true);
+        setError(null);
+        const res = await fetch(`${API_BASE}/api/business?limit=50`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json(); // { items, total }
+        if (!ignore) setProcesses(Array.isArray(data?.items) ? data.items : []);
       } catch (e: any) {
         if (!ignore) setError(e?.message || "Failed to fetch data");
       } finally {
         if (!ignore) setLoading(false);
       }
-    }
-
-    load();
+    })();
     return () => { ignore = true; };
   }, []);
 
   return (
-    <div style={{ padding: "20px" }}>
+    <div style={{ padding: 20 }}>
       <h2>Business Processes</h2>
-
       {loading && <p>Loading…</p>}
       {error && <p style={{ color: "crimson" }}>{error}</p>}
-
       {!loading && !error && (processes.length === 0 ? (
         <p>No processes found.</p>
       ) : (
@@ -64,57 +55,49 @@ function BusinessList() {
   );
 }
 
-// ✅ PrivateRoute wrapper (kept as-is, uses your existing auth singleton)
+/** PrivateRoute wrapper */
 function PrivateRoute({ children }: { children: JSX.Element }) {
   return auth.isLoggedIn() ? children : <Navigate to="/login" replace />;
 }
 
 function AppLayout() {
   const location = useLocation();
-  const isProjectPage = location.pathname.startsWith("/project");
   const isLoginPage = location.pathname === "/login";
 
   return (
     <div style={{ display: "flex" }}>
-      {/* Show LeftPanel except on login and project pages */}
-      {!isProjectPage && !isLoginPage && <LeftPanel />}
+      {/* Show LeftPanel on every page except login */}
+      {!isLoginPage && <LeftPanel />}
 
       <div style={{ flex: 1 }}>
         <Routes>
           {/* Default route → Login */}
           <Route path="/" element={<Navigate to="/login" />} />
 
-          {/* Public route */}
+          {/* Public */}
           <Route path="/login" element={<LoginPage />} />
 
-          {/* Protected routes */}
+          {/* Protected */}
           <Route
             path="/dashboard"
-            element={
-              <PrivateRoute>
-                <Dashboard />
-              </PrivateRoute>
-            }
+            element={<PrivateRoute><Dashboard /></PrivateRoute>}
           />
           <Route
             path="/project/:id"
-            element={
-              <PrivateRoute>
-                <ProjectFlow />
-              </PrivateRoute>
-            }
+            element={<PrivateRoute><ProjectFlow /></PrivateRoute>}
           />
-          {/* Protected route for Mongo data */}
+          {/* NEW: Flow Analysis page shown right after upload */}
+          <Route
+            path="/project/:id/analysis"
+            element={<PrivateRoute><FlowAnalysis /></PrivateRoute>}
+          />
+          {/* Demo list from businessProcesses */}
           <Route
             path="/business"
-            element={
-              <PrivateRoute>
-                <BusinessList />
-              </PrivateRoute>
-            }
+            element={<PrivateRoute><BusinessList /></PrivateRoute>}
           />
 
-          {/* Catch-all → Login */}
+          {/* Catch-all */}
           <Route path="*" element={<Navigate to="/login" />} />
         </Routes>
       </div>
@@ -122,12 +105,10 @@ function AppLayout() {
   );
 }
 
-function App() {
+export default function App() {
   return (
     <Router>
       <AppLayout />
     </Router>
   );
 }
-
-export default App;

@@ -2,13 +2,15 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./dashboard.css";
 
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5001";
+
 interface Project {
   _id?: string;
   name: string;
   description: string;
-  type: string;
-  date: string;
-  step: string;
+  type?: string;
+  date?: string;
+  step?: string; // e.g. "60%"
 }
 
 const Dashboard: React.FC = () => {
@@ -16,6 +18,10 @@ const Dashboard: React.FC = () => {
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  const [q, setQ] = useState(""); // search query
+  const [filterType, setFilterType] = useState("All Types");
 
   const [showModal, setShowModal] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -25,78 +31,141 @@ const Dashboard: React.FC = () => {
     description: "",
     type: "Web",
     date: new Date().toISOString().split("T")[0],
-    step: "1/1",
+    step: "0%",
   });
 
-  // ✅ Fetch projects
-  useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const res = await fetch("http://localhost:5001/api/business");
-        const data = await res.json();
-        setProjects(data);
-      } catch (error) {
-        console.error("❌ Error fetching projects:", error);
-      } finally {
-        setLoading(false);
+  // ------- load list -------
+  async function fetchProjectsList(query = "") {
+    setLoading(true);
+    setErr(null);
+
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), 15000); // safety
+
+    try {
+      const params = new URLSearchParams();
+      if (query.trim()) params.set("q", query.trim());
+      params.set("limit", "12");
+
+      const res = await fetch(`${API_BASE}/projects?${params.toString()}`, {
+        signal: ac.signal,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const json = await res.json(); // { items, total }
+      let items: Project[] = Array.isArray(json?.items) ? json.items : [];
+
+      // client-side filter by type (optional)
+      if (filterType !== "All Types") {
+        items = items.filter((p) => (p.type || "Web") === filterType);
       }
-    };
-    fetchProjects();
+      setProjects(items);
+    } catch (e: any) {
+      if (e?.name !== "AbortError") setErr(e.message || "Failed to fetch projects");
+    } finally {
+      clearTimeout(t);
+      setLoading(false);
+    }
+  }
+
+  // initial load
+  useEffect(() => {
+    fetchProjectsList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ Handle input
+  // debounced search + filter
+  useEffect(() => {
+    const id = setTimeout(() => fetchProjectsList(q), 350);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, filterType]);
+
+  // ------- form handlers -------
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     setFormProject({ ...formProject, [e.target.name]: e.target.value });
   };
 
-  // ✅ Add project
-  const handleAddProject = async () => {
-    if (!formProject.name || !formProject.description) return;
-    try {
-      const res = await fetch("http://localhost:5001/api/business", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formProject),
-      });
-      const data = await res.json();
-      setProjects([...projects, data]);
-      closeModal();
-    } catch (error) {
-      console.error("❌ Error adding project:", error);
-    }
+  // ------- create -------
+ const handleAddProject = async () => {
+  if (!formProject.name || !formProject.description) {
+    alert("Name and Description are required.");
+    return;
+  }
+
+  const payload = {
+    name: formProject.name,
+    description: formProject.description,
+    type: formProject.type || "Web",
+    date: formProject.date,
+    step: formProject.step, // e.g., "25%"
   };
 
-  // ✅ Update project
+  try {
+    const res = await fetch(`${API_BASE}/projects`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`HTTP ${res.status} – ${text}`);
+    }
+    const created: Project = await res.json();
+    setProjects((prev) => [created, ...prev]);
+    window.dispatchEvent(new Event("projects:changed")); // notify sidebar
+    closeModal();
+  } catch (err: any) {
+    console.error(err);
+    alert(err?.message || "Error adding project");
+  }
+};
+
+
+  // ------- update -------
   const handleUpdateProject = async () => {
     if (!editingProject?._id) return;
     try {
-      const res = await fetch(`http://localhost:5001/api/business/${editingProject._id}`, {
+      const payload = {
+        name: formProject.name,
+        description: formProject.description,
+        type: formProject.type || "Web",
+        date: formProject.date,
+        step: formProject.step,
+      };
+
+      const res = await fetch(`${API_BASE}/projects/${editingProject._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formProject),
+        body: JSON.stringify(payload),
       });
-      const updated = await res.json();
-      setProjects(projects.map((p) => (p._id === updated._id ? updated : p)));
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const updated: Project = await res.json();
+
+      setProjects((prev) => prev.map((p) => (p._id === updated._id ? updated : p)));
+      window.dispatchEvent(new Event("projects:changed")); // 🔔 tell sidebar
       closeModal();
-    } catch (error) {
-      console.error("❌ Error updating project:", error);
+    } catch (error: any) {
+      alert(error.message || "Error updating project");
     }
   };
 
-  // ✅ Delete project
+  // ------- delete -------
   const handleDeleteProject = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this project?")) return;
     try {
-      await fetch(`http://localhost:5001/api/business/${id}`, { method: "DELETE" });
-      setProjects(projects.filter((p) => p._id !== id));
-    } catch (error) {
-      console.error("❌ Error deleting project:", error);
+      const res = await fetch(`${API_BASE}/projects/${id}`, { method: "DELETE" });
+      if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
+      setProjects((prev) => prev.filter((p) => p._id !== id));
+      window.dispatchEvent(new Event("projects:changed")); // 🔔 tell sidebar
+    } catch (error: any) {
+      alert(error.message || "Error deleting project");
     }
   };
 
-  // ✅ Modal helpers
+  // ------- modal helpers -------
   const openAddModal = () => {
     setEditingProject(null);
     setFormProject({
@@ -104,14 +173,19 @@ const Dashboard: React.FC = () => {
       description: "",
       type: "Web",
       date: new Date().toISOString().split("T")[0],
-      step: "1/1",
+      step: "0%",
     });
     setShowModal(true);
   };
 
   const openEditModal = (project: Project) => {
     setEditingProject(project);
-    setFormProject(project);
+    setFormProject({
+      ...project,
+      type: project.type || "Web",
+      date: project.date || new Date().toISOString().split("T")[0],
+      step: project.step || "0%",
+    });
     setShowModal(true);
   };
 
@@ -137,12 +211,24 @@ const Dashboard: React.FC = () => {
 
         {/* Controls row */}
         <div className="controls">
-          <input type="text" placeholder="Search projects..." className="search-bar" />
-          <select className="filter-dropdown">
+          <input
+            type="text"
+            placeholder="Search projects..."
+            className="search-bar"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+          <select
+            className="filter-dropdown"
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+          >
             <option>All Types</option>
             <option>Web</option>
             <option>Mobile</option>
             <option>UI-Testing</option>
+            <option>API</option>
+            <option>AI</option>
           </select>
           <button className="new-project-btn" onClick={openAddModal}>
             + New Project
@@ -152,22 +238,29 @@ const Dashboard: React.FC = () => {
         {/* Projects grid */}
         {loading ? (
           <p>Loading projects...</p>
+        ) : err ? (
+          <p style={{ color: "crimson" }}>{err}</p>
         ) : (
           <div className="projects-grid">
             {projects.map((project) => (
               <div key={project._id} className="project-card">
-                <div className="project-header" onClick={() => navigate(`/project/${project._id}`)}>
+                <div
+                  className="project-header"
+                  onClick={() => project._id && navigate(`/project/${project._id}`)}
+                >
                   <h4>{project.name}</h4>
-                  <p>{project.type}</p>
+                  <p>{project.type || "Web"}</p>
                 </div>
                 <p className="description">{project.description}</p>
                 <div className="project-footer">
-                  <div className="date">📅 {project.date}</div>
-                  <div className="step">Step {project.step}</div>
+                  <div className="date">📅 {project.date || "—"}</div>
+                  <div className="step">Step {project.step || "—"}</div>
                 </div>
                 <div className="actions">
                   <button onClick={() => openEditModal(project)}>✏️ Edit</button>
-                  <button onClick={() => handleDeleteProject(project._id!)}>🗑️ Delete</button>
+                  <button onClick={() => project._id && handleDeleteProject(project._id)}>
+                    🗑️ Delete
+                  </button>
                 </div>
               </div>
             ))}
@@ -206,15 +299,15 @@ const Dashboard: React.FC = () => {
                 onChange={handleChange}
               />
               {editingProject ? (
-                <button className="save-btn" onClick={handleUpdateProject}>
+                <button type="button" className="save-btn" onClick={handleUpdateProject}>
                   Update
                 </button>
               ) : (
-                <button className="save-btn" onClick={handleAddProject}>
+                <button type="button" className="save-btn" onClick={handleAddProject}>
                   Save
                 </button>
               )}
-              <button className="cancel-btn" onClick={closeModal}>
+              <button type="button" className="cancel-btn" onClick={closeModal}>
                 Cancel
               </button>
             </div>

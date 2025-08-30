@@ -1,30 +1,28 @@
+import "dotenv/config";
 import express from "express";
-import mongoose from "mongoose";
-import dotenv from "dotenv";
 import cors from "cors";
+import helmet from "helmet";
+import { connectDB } from "./db";
 import { businessRouter } from "./routes/businessRoutes";
+import { dashboardRouter } from "./routes/dashboard";
+import { debugRouter } from "./routes/debug";
+import { projectsRouter } from "./routes/projects";
 
-dotenv.config();
 
 const app = express();
-
-// Middleware
-app.use(cors());
+app.use(helmet());
+app.use(cors({ origin: ["http://localhost:5173"], credentials: true }));
 app.use(express.json());
+app.use("/debug", debugRouter);
+app.use("/projects", projectsRouter); 
+app.use("/api/business", businessRouter);
 
-// Routes
-app.use("/api/businessprocess", businessRouter);
+await connectDB();
 
-const PORT = process.env.PORT || 5001;
-const MONGO_URI = process.env.MONGO_URI as string;
+app.get("/health", (_req, res) => res.json({ ok: true }));
 
-// MongoDB connection
-mongoose
-  .connect(MONGO_URI)
-  .then(() => {
-    console.log("✅ MongoDB Connected");
-    app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-  })
-  .catch((err) => {
-    console.error("❌ MongoDB connection error:", err);
-  });
+app.use("/api/business", businessRouter);   // business & loan processes
+app.use("/dashboard", dashboardRouter);     // projects for dashboard
+
+const port = Number(process.env.PORT || 5001);
+app.listen(port, () => console.log(`API listening on :${port}`));

@@ -177,3 +177,138 @@
 .upload-box button:hover {
   background: #218838;
 }
+/* --- Flow Analysis grid & cards --- */
+.bp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  padding-bottom: 24px;
+}
+
+.bp-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;      /* gray-200 */
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+
+.bp-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.08);
+  border-color: #d1d5db;          /* gray-300 */
+}
+
+.bp-card-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bp-title {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.25;
+  font-weight: 700;
+  color: #111827;                  /* gray-900 */
+}
+
+.bp-desc {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: #6b7280;                  /* gray-500 */
+}
+
+.bp-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+/* badges */
+.bp-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+.bp-badge.critical { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+.bp-badge.high     { background: #ffedd5; color: #9a3412; border-color: #fed7aa; }
+.bp-badge.medium   { background: #e0f2fe; color: #075985; border-color: #bae6fd; }
+.bp-badge.low      { background: #ecfdf5; color: #065f46; border-color: #bbf7d0; }
+
+/* buttons */
+.btn {
+  appearance: none;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #111827;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background .12s ease, border-color .12s ease;
+}
+.btn:hover { background: #f9fafb; border-color: #9ca3af; }
+
+.btn-primary {
+  background: #22c55e;           /* green-500 */
+  color: #fff;
+  border-color: #16a34a;
+}
+.btn-primary:hover { background: #16a34a; }
+
+.btn-edit {
+  background: #eef2ff;           /* indigo-50 */
+  border-color: #c7d2fe;         /* indigo-200 */
+  color: #3730a3;                /* indigo-800 */
+}
+.btn-edit:hover { background: #e0e7ff; }
+
+/* modal */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.45); /* slate-900/45 */
+  display: grid; place-items: center;
+  z-index: 50;
+}
+
+.modal {
+  width: min(640px, calc(100% - 32px));
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(2, 6, 23, .2);
+  padding: 20px;
+}
+
+.form-label {
+  display: block;
+  font-size: 13px;
+  color: #374151;
+  margin-top: 12px;
+  margin-bottom: 6px;
+}
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: #6366f1;     /* indigo-500 */
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, .2);
+}
+
+.modal-actions {
+  margin-top: 16px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}

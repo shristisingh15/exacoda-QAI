@@ -1,21 +1,56 @@
-// backend/src/routes/businessRoutes.ts
 import { Router } from "express";
 import { BusinessProcess } from "../models/BusinessProcess";
 
 export const businessRouter = Router();
 
-businessRouter.get("/", async (_req, res, next) => {
+/**
+ * GET /api/business
+ * Query:
+ *   q     - optional text search (name/description)
+ *   limit - optional, default 10, hard-capped at 10
+ *
+ * Always returns ONLY from the "businessProcesses" collection.
+ */
+businessRouter.get("/", async (req, res, next) => {
   try {
-    const list = await BusinessProcess.find().sort({ createdAt: -1 }).lean();
-    res.json(list);
-  } catch (e) { next(e); }
-});
+    const q = String(req.query.q || "").trim();
+    const limitReq = parseInt(String(req.query.limit || "10"), 10);
+    const limit = Math.min(Math.max(isNaN(limitReq) ? 10 : limitReq, 1), 10);
 
-businessRouter.post("/", async (req, res, next) => {
+    const filter = q
+      ? {
+          $or: [
+            { name: { $regex: q, $options: "i" } },
+            { description: { $regex: q, $options: "i" } },
+          ],
+        }
+      : {};
+
+    const items = await BusinessProcess.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    // respond with exactly items.length (<=10)
+    res.json({ items, total: items.length, source: "businessProcesses" });
+  } catch (e) {
+    next(e);
+  }
+});
+// PUT /api/business/:id  -> update a business process
+businessRouter.put("/:id", async (req, res, next) => {
   try {
-    const { name, description } = req.body || {};
-    if (!name) return res.status(400).json({ code: "E003", message: "Name is required" });
-    const doc = await BusinessProcess.create({ name, description });
-    res.status(201).json(doc);
+    const { name, description, priority } = req.body || {};
+    const update: Record<string, any> = {};
+    if (name !== undefined) update.name = name;
+    if (description !== undefined) update.description = description;
+    if (priority !== undefined) update.priority = priority;
+
+    const doc = await BusinessProcess.findByIdAndUpdate(req.params.id, update, {
+      new: true,
+    }).lean();
+
+    if (!doc) return res.status(404).json({ message: "not found" });
+    res.json(doc);
   } catch (e) { next(e); }
 });
