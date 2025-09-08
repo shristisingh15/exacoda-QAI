@@ -140,15 +140,18 @@
   animation: fadeIn 0.2s ease-in-out;
 }
 
+/* Modal */
 .modal {
   background: white;
-  padding: 24px;
-  border-radius: 12px;
-  width: 360px;
+  padding: 40px; /* more inner space */
+  border-radius: 16px;
+  width: 700px !important;  /* force wider */
+  max-width: 90% !important; /* responsive fallback */
+  min-height: 450px;  /* taller modal */
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  gap: 20px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
   animation: scaleUp 0.25s ease-in-out;
 }
 

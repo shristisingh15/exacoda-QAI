@@ -2,16 +2,19 @@ import mongoose from "mongoose";
 
 const projectSchema = new mongoose.Schema(
   {
-    projectName: { type: String, required: true },   // UI "name"
+    projectName: { type: String, required: true },
     description: { type: String, default: "" },
-    projectType: { type: String, default: "Web" },   // UI "type"
-    date:        { type: String },                   // store as yyyy-mm-dd string
-    progress:    { type: Number, default: 0 }        // UI "step" (e.g., 60)
+    projectType: { type: String, default: "Web" },
+    date:        { type: String, default: () => new Date().toISOString().split("T")[0] },
+    progress:    { type: Number, default: 0 }, // 0–100
   },
   { timestamps: false }
 );
 
 export type ProjectDoc = mongoose.InferSchemaType<typeof projectSchema>;
 
-// 3rd arg pins the exact collection name:
-export const Project = mongoose.model<ProjectDoc>("Project", projectSchema, "projects");
+export const Project = mongoose.model<ProjectDoc>(
+  "Project",    // model name
+  projectSchema,
+  "projects"    // collection name
+);

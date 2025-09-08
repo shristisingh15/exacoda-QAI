@@ -16,6 +16,8 @@ app.use(express.json());
 app.use("/debug", debugRouter);
 app.use("/projects", projectsRouter); 
 app.use("/api/business", businessRouter);
+app.use("/projects", projectsRouter);
+
 
 await connectDB();
 

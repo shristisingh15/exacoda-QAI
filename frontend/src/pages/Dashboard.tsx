@@ -199,8 +199,7 @@ const Dashboard: React.FC = () => {
       <div className="main-content">
         {/* Top header */}
         <div className="top-header">
-          <span className="logo">🧪</span>
-          <h1>TestFlow AI</h1>
+          <h1>QAI</h1>
         </div>
 
         {/* Page title */}

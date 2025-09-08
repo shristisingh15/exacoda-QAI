@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./login.css";
-import botImage from "../assets/bot.png.jpeg";
 import { auth } from "../auth"; // 👈 import auth
 
 export default function LoginPage() {
@@ -31,7 +30,6 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
-      {/* Left side: Login card */}
       <div className="login-left">
         <div className="login-card">
           <h2>Login</h2>
@@ -61,14 +59,9 @@ export default function LoginPage() {
             {authState === "error" && <p className="error">Invalid credentials</p>}
           </form>
 
-          <button className="gmail-login">Login with Gmail</button>
-          <button className="signin-btn">Sign In</button>
+          <button className="gmail-login">Login with Single Sign-On</button>
+          <button className="signin-btn">Sign up</button>
         </div>
-      </div>
-
-      {/* Right side: Bot image */}
-      <div className="login-right">
-        <img src={botImage} alt="Bot" />
       </div>
     </div>
   );

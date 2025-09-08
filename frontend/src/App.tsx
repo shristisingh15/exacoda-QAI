@@ -1,11 +1,19 @@
+// src/App.tsx
+import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
+
 import Dashboard from "./pages/Dashboard";
 import ProjectFlow from "./pages/ProjectFlow";
 import LeftPanel from "./pages/LeftPanel";
 import LoginPage from "./pages/Login";
 import { auth } from "./auth";
 import FlowAnalysis from "./pages/FlowAnalysis";
+
+// Optional pages — create these files or leave as placeholders below
+import TestScenarios from "./pages/TestScenario";
+import TestCases from "./pages/TestCase";
+import TestRun from "./pages/TestRun";
 
 // Pull API base from .env (VITE_API_BASE=http://localhost:5001)
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5001";
@@ -71,34 +79,35 @@ function AppLayout() {
 
       <div style={{ flex: 1 }}>
         <Routes>
-          {/* Default route → Login */}
-          <Route path="/" element={<Navigate to="/login" />} />
+          {/* Default route → Dashboard if logged in, otherwise login */}
+          <Route path="/" element={auth.isLoggedIn() ? <Navigate to="/dashboard" /> : <Navigate to="/login" />} />
 
           {/* Public */}
           <Route path="/login" element={<LoginPage />} />
 
           {/* Protected */}
-          <Route
-            path="/dashboard"
-            element={<PrivateRoute><Dashboard /></PrivateRoute>}
-          />
-          <Route
-            path="/project/:id"
-            element={<PrivateRoute><ProjectFlow /></PrivateRoute>}
-          />
-          {/* NEW: Flow Analysis page shown right after upload */}
-          <Route
-            path="/project/:id/analysis"
-            element={<PrivateRoute><FlowAnalysis /></PrivateRoute>}
-          />
+          <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+
+          {/* Project flow (Upload) */}
+          <Route path="/project/:id" element={<PrivateRoute><ProjectFlow /></PrivateRoute>} />
+
+          {/* Flow Analysis */}
+          <Route path="/project/:id/analysis" element={<PrivateRoute><FlowAnalysis /></PrivateRoute>} />
+
+          {/* Test Scenarios */}
+          <Route path="/project/:id/scenarios" element={<PrivateRoute><TestScenarios /></PrivateRoute>} />
+
+          {/* Test Cases */}
+         <Route path="/project/:id/cases" element={<PrivateRoute><TestCases /></PrivateRoute>} />*/
+
+          {/* Test / run */}
+          <Route path="/project/:id/test" element={<PrivateRoute><TestRun /></PrivateRoute>} />
+
           {/* Demo list from businessProcesses */}
-          <Route
-            path="/business"
-            element={<PrivateRoute><BusinessList /></PrivateRoute>}
-          />
+          <Route path="/business" element={<PrivateRoute><BusinessList /></PrivateRoute>} />
 
           {/* Catch-all */}
-          <Route path="*" element={<Navigate to="/login" />} />
+          <Route path="*" element={<Navigate to={auth.isLoggedIn() ? "/dashboard" : "/login"} />} />
         </Routes>
       </div>
     </div>
