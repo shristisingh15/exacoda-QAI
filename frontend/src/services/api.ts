@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:5001/api/businessprocess";
+const API_BASE = "https://exacoda-qai-q8up.onrender.com/api/businessprocess";
 
 export async function getBusinessProcesses() {
   const res = await fetch(API_BASE);

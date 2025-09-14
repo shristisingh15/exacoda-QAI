@@ -4,7 +4,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import "./ProjectFlow.css";
 import StepButtons from "./StepButton"; // shared stepper buttons
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5001";
+const API_BASE = import.meta.env.VITE_API_BASE || "https://exacoda-qai-q8up.onrender.com";
 
 type BP = {
   _id: string;

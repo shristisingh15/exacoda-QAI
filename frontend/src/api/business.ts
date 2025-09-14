@@ -1,5 +1,5 @@
 // frontend/src/api/business.ts
-const API = import.meta.env.VITE_API_BASE || "http://localhost:5001";
+const API = import.meta.env.VITE_API_BASE || "https://exacoda-qai-q8up.onrender.com";
 
 export async function fetchBusinessTiles(opts?: { type?: "all" | "business" | "loan"; q?: string; limit?: number }) {
   const params = new URLSearchParams();

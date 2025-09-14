@@ -6,7 +6,7 @@ import "./LeftPanel.css";
 // import logo - update path if your asset is elsewhere
 import logoSrc from "../assets/logo.png.jpeg";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5001";
+const API_BASE = import.meta.env.VITE_API_BASE || "https://exacoda-qai-q8up.onrender.com";
 
 type Project = { _id: string; name: string; type?: string };
 type ProjectFile = { _id: string; filename: string; version: string };

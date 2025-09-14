@@ -15,8 +15,8 @@ import TestScenarios from "./pages/TestScenario";
 import TestCases from "./pages/TestCase";
 import TestRun from "./pages/TestRun";
 
-// Pull API base from .env (VITE_API_BASE=http://localhost:5001)
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5001";
+// Pull API base from .env (VITE_API_BASE=https://exacoda-qai-q8up.onrender.com)
+const API_BASE = import.meta.env.VITE_API_BASE || "https://exacoda-qai-q8up.onrender.com";
 
 /** Demo page: lists business processes from Mongo */
 function BusinessList() {
