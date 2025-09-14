@@ -1,7 +1,7 @@
 // src/pages/Login.tsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import "./login.css";
+import "./Login.css";
 import botImage from "../assets/bot.png";  // ✅ ensure this path is correct
 
 export default function LoginPage() {

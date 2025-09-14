@@ -1,7 +1,7 @@
 // frontend/src/pages/ProjectFlow.tsx
 import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import "./projectflow.css";
+import "./ProjectFlow.css";
 import StepButtons from "./StepButton"; // ⬅️ shared stepper buttons
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5001";

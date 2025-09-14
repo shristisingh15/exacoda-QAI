@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
-import "../pages/projectflow.css";
+import "../pages/ProjectFlow.css";
 
 const steps = [
   { path: "root", label: "1. Upload Documents" },

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import "./dashboard.css";
+import "./Dashboard.css";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5001";
 
