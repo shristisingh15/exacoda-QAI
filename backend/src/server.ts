@@ -14,8 +14,7 @@ const app = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5174"], // allow both Vite ports
-    credentials: true,
+    origin: ["http://localhost:5173", "http://localhost:5174","https://exacodaqai-xdtb.onrender.com"],
   })
 );
 app.use(express.json());
