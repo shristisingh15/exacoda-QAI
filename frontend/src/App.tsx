@@ -1,6 +1,6 @@
-// src/App.tsx
+// frontend/src/App.tsx
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { HashRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 
 import Dashboard from "./pages/Dashboard";
@@ -70,7 +70,7 @@ function PrivateRoute({ children }: { children: JSX.Element }) {
 
 function AppLayout() {
   const location = useLocation();
-  const isLoginPage = location.pathname === "/login";
+  const isLoginPage = location.pathname === "/login" || location.hash === "#/login";
 
   return (
     <div style={{ display: "flex" }}>
@@ -98,7 +98,7 @@ function AppLayout() {
           <Route path="/project/:id/scenarios" element={<PrivateRoute><TestScenarios /></PrivateRoute>} />
 
           {/* Test Cases */}
-         <Route path="/project/:id/cases" element={<PrivateRoute><TestCases /></PrivateRoute>} />*/
+          <Route path="/project/:id/cases" element={<PrivateRoute><TestCases /></PrivateRoute>} />
 
           {/* Test / run */}
           <Route path="/project/:id/test" element={<PrivateRoute><TestRun /></PrivateRoute>} />
