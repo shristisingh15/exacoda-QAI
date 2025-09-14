@@ -17,7 +17,7 @@ export default function LoginPage() {
     setAuthState("idle");
 
     setTimeout(() => {
-      if (email === "admin@example.com" && password === "12345") {
+      if (email === "admin@exacoda.com" && password === "12345") {
         auth.login(); // ✅ save login state
         setAuthState("success");
         navigate("/dashboard");
