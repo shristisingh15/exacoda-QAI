@@ -1,5 +1,5 @@
 // src/lib/openai.ts
-import fetch from "node-fetch"; // optional if Node<18. Node 18+ has global fetch.
+
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
 if (!OPENAI_KEY) {

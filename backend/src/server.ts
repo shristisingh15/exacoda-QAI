@@ -2,38 +2,48 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import { connectDB } from "./db";
-import { businessRouter } from "./routes/businessRoutes";
-import { dashboardRouter } from "./routes/dashboard";
-import { debugRouter } from "./routes/debug";
-import { projectsRouter } from "./routes/projects";
-
-
+import { connectDB } from "./db.js";
+import { businessRouter } from "./routes/businessRoutes.js";
+import { dashboardRouter } from "./routes/dashboard.js";
+import { debugRouter } from "./routes/debug.js";
+import { projectsRouter } from "./routes/projects.js";
 
 const app = express();
+
+// Middleware
 app.use(helmet());
 app.use(
   cors({
     origin: ["http://localhost:5173", "http://localhost:5174"], // allow both Vite ports
-    credentials: true, // if you need cookies/auth headers
+    credentials: true,
   })
 );
-
 app.use(express.json());
+
+// Routes
 app.use("/debug", debugRouter);
-app.use("/projects", projectsRouter); 
 app.use("/api/business", businessRouter);
-app.use("/projects", projectsRouter);
 app.use("/api/projects", projectsRouter);
+app.use("/dashboard", dashboardRouter);
 
-
-await connectDB();
-
+// Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
-app.use("/api/business", businessRouter);   // business & loan processes
-app.use("/dashboard", dashboardRouter);     // projects for dashboard
+// ✅ Start server only once
+(async () => {
+  try {
+    await connectDB();
 
-const port = Number(process.env.PORT || 5001);
-console.log("🔑 OpenAI key prefix:", process.env.OPENAI_API_KEY?.slice(0, 8));
-app.listen(port, () => console.log(`API listening on :${port}`));
+    // 👇 Default to 5004 locally, or $PORT on Render
+    const PORT = Number(process.env.PORT || 5004);
+
+    console.log("🔑 OpenAI key prefix:", process.env.OPENAI_API_KEY?.slice(0, 8));
+
+    app.listen(PORT, () => {
+      console.log(`🚀 API listening on :${PORT}`);
+    });
+  } catch (err) {
+    console.error("❌ Failed to start server:", err);
+    process.exit(1);
+  }
+})();

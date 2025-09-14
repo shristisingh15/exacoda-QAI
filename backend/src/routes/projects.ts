@@ -465,7 +465,23 @@ projectsRouter.post("/:id/generate-scenarios", upload.none(), async (req, res) =
       return cleaned.slice(0, 200000);
     }
 
-    const docText = latestFile ? await extractTextFromBuffer(latestFile.data, latestFile.filename, latestFile.mimetype) : "";
+    let buffer: Buffer | undefined;
+
+if (latestFile?.data) {
+  if (latestFile.data instanceof Buffer) {
+    buffer = latestFile.data;
+  } else if ("buffer" in latestFile.data) {
+    // handle mongodb.Binary
+    buffer = Buffer.from(latestFile.data.buffer);
+  } else {
+    // fallback for Uint8Array or other
+    buffer = Buffer.from(latestFile.data as Uint8Array);
+  }
+}
+
+const docText = buffer && latestFile
+  ? await extractTextFromBuffer(buffer, latestFile.filename, latestFile.mimetype)
+  : "";
 
     // build LLM prompt
     const bpLines = bps
