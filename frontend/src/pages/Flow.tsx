@@ -32,7 +32,7 @@ function Flow() {
       setLoadingProject(true);
       setProjectErr(null);
       try {
-        const res = await fetch(`${API_BASE}/projects/${id}`, { signal: ac.signal });
+        const res = await fetch(`${API_BASE}/api/projects/${id}`, { signal: ac.signal });
         if (!res.ok) {
           const text = await res.text().catch(() => "");
           throw new Error(`HTTP ${res.status} ${text}`);

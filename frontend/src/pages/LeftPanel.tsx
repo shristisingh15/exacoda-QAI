@@ -36,7 +36,7 @@ const LeftPanel: React.FC = () => {
     setLoading(true);
     setErr(null);
     try {
-      const res = await fetch(`${API_BASE}/projects?limit=100`);
+      const res = await fetch(`${API_BASE}/api/projects?limit=100`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       setProjects(Array.isArray(json.items) ? json.items : []);
@@ -50,7 +50,7 @@ const LeftPanel: React.FC = () => {
   // load files for a single project
   async function loadFiles(projectId: string) {
     try {
-      const res = await fetch(`${API_BASE}/projects/${projectId}/files`);
+      const res = await fetch(`${API_BASE}/api/projects/${projectId}/files`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setFiles((prev) => ({ ...prev, [projectId]: data }));
@@ -72,7 +72,7 @@ const LeftPanel: React.FC = () => {
   // download a file
   const handleDownload = async (projectId: string, file: ProjectFile) => {
     try {
-      const res = await fetch(`${API_BASE}/projects/${projectId}/files/${file._id}`);
+      const res = await fetch(`${API_BASE}/api/projects/${projectId}/files/${file._id}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);

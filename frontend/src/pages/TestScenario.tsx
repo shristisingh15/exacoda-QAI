@@ -46,7 +46,7 @@ export default function TestScenariosPage(): JSX.Element {
       setLoadingProject(true);
       setProjectErr(null);
       try {
-        const res = await fetch(`${API_BASE}/projects/${id}`, { signal: ac.signal });
+        const res = await fetch(`${API_BASE}/api/projects/${id}`, { signal: ac.signal });
         if (!res.ok) {
           const t = await res.text().catch(() => "");
           throw new Error(`HTTP ${res.status} ${t}`);
@@ -70,7 +70,7 @@ export default function TestScenariosPage(): JSX.Element {
       setLoadingScenarios(true);
       setScenariosErr(null);
       try {
-        const res = await fetch(`${API_BASE}/projects/${id}/scenarios`, { signal: ac.signal });
+        const res = await fetch(`${API_BASE}/api/projects/${id}/scenarios`, { signal: ac.signal });
         if (!res.ok) {
           if (res.status === 404) {
             setScenarios([]);
@@ -116,7 +116,7 @@ export default function TestScenariosPage(): JSX.Element {
   const handleDelete = async (s: Scenario) => {
     if (!window.confirm("Delete this scenario?")) return;
     try {
-      const res = await fetch(`${API_BASE}/projects/${id}/scenarios/${s._id}`, { method: "DELETE" });
+      const res = await fetch(`${API_BASE}/api/projects/${id}/scenarios/${s._id}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setScenarios((prev) => prev.filter((x) => x._id !== s._id));
       setSelected((prev) => {
@@ -143,7 +143,7 @@ export default function TestScenariosPage(): JSX.Element {
     const errors: string[] = [];
     for (const sid of ids) {
       try {
-        const r = await fetch(`${API_BASE}/projects/${id}/scenarios/${sid}`, { method: "DELETE" });
+        const r = await fetch(`${API_BASE}/api/projects/${id}/scenarios/${sid}`, { method: "DELETE" });
         if (!r.ok) {
           const t = await r.text().catch(() => "");
           throw new Error(`HTTP ${r.status} ${t}`);

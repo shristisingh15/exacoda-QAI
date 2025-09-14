@@ -7,7 +7,7 @@ export async function fetchProjects(opts?: { q?: string; limit?: number }) {
   const p = new URLSearchParams();
   if (opts?.q) p.set("q", opts.q);
   p.set("limit", String(opts?.limit ?? 12));
-  const res = await fetch(`${API}/projects?${p.toString()}`);
+  const res = await fetch(`${API}/api/projects?${p.toString()}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json() as Promise<ProjectList>;
 }

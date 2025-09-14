@@ -71,7 +71,7 @@ export default function FlowAnalysis() {
       setLoadingProject(true);
       setProjectErr(null);
       try {
-        const res = await fetch(`${API_BASE}/projects/${id}`, { signal: ac.signal });
+        const res = await fetch(`${API_BASE}/api/projects/${id}`, { signal: ac.signal });
         if (!res.ok) {
           const t = await res.text().catch(() => "");
           throw new Error(`HTTP ${res.status} ${t}`);
@@ -184,7 +184,7 @@ export default function FlowAnalysis() {
       const fd = new FormData();
       fd.append("file", file);
 
-      const res = await fetch(`${API_BASE}/projects/${id}/regenerate`, {
+      const res = await fetch(`${API_BASE}/api/projects/${id}/regenerate`, {
         method: "POST",
         body: fd,
       });
@@ -233,7 +233,7 @@ export default function FlowAnalysis() {
 
     setGenerating(true);
     try {
-      const res = await fetch(`${API_BASE}/projects/${id}/generate-scenarios`, {
+      const res = await fetch(`${API_BASE}/api/projects/${id}/generate-scenarios`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ bpIds }),

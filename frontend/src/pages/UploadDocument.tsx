@@ -36,7 +36,7 @@ export default function UploadDocuments({ setStep, projectId }: UploadDocumentsP
 
       // If projectId is present, upload to project-specific endpoint
       const uploadUrl = projectId
-        ? `${API_BASE}/projects/${projectId}/upload`
+        ? `${API_BASE}/api/projects/${projectId}/upload`
         : `${API_BASE}/api/upload`;
 
       const res = await fetch(uploadUrl, {

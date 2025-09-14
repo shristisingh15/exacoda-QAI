@@ -41,7 +41,7 @@ const ProjectFlow: React.FC = () => {
       setLoadingProject(true);
       setProjectErr(null);
       try {
-        const res = await fetch(`${API_BASE}/projects/${id}`, { signal: ac.signal });
+        const res = await fetch(`${API_BASE}/api/projects/${id}`, { signal: ac.signal });
         if (!res.ok) {
           const t = await res.text().catch(() => "");
           throw new Error(`HTTP ${res.status} ${t}`);
@@ -80,7 +80,7 @@ const ProjectFlow: React.FC = () => {
 
     try {
       setUploading(true);
-      const res = await fetch(`${API_BASE}/projects/${id}/upload`, {
+      const res = await fetch(`${API_BASE}/api/projects/${id}/upload`, {
         method: "POST",
         body: fd,
       });

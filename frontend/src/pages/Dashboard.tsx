@@ -47,7 +47,7 @@ const Dashboard: React.FC = () => {
       if (query.trim()) params.set("q", query.trim());
       params.set("limit", "12");
 
-      const res = await fetch(`${API_BASE}/projects?${params.toString()}`, {
+      const res = await fetch(`${API_BASE}/api/projects?${params.toString()}`, {
         signal: ac.signal,
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -104,7 +104,7 @@ const Dashboard: React.FC = () => {
   };
 
   try {
-    const res = await fetch(`${API_BASE}/projects`, {
+    const res = await fetch(`${API_BASE}/api/projects`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -136,7 +136,7 @@ const Dashboard: React.FC = () => {
         step: formProject.step,
       };
 
-      const res = await fetch(`${API_BASE}/projects/${editingProject._id}`, {
+      const res = await fetch(`${API_BASE}/api/projects/${editingProject._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -156,7 +156,7 @@ const Dashboard: React.FC = () => {
   const handleDeleteProject = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this project?")) return;
     try {
-      const res = await fetch(`${API_BASE}/projects/${id}`, { method: "DELETE" });
+      const res = await fetch(`${API_BASE}/api/projects/${id}`, { method: "DELETE" });
       if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
       setProjects((prev) => prev.filter((p) => p._id !== id));
       window.dispatchEvent(new Event("projects:changed")); // 🔔 tell sidebar
