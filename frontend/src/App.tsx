@@ -98,7 +98,14 @@ function AppLayout() {
           <Route path="/project/:id/scenarios" element={<PrivateRoute><TestScenarios /></PrivateRoute>} />
 
           {/* Test Cases */}
-          <Route path="/project/:id/cases" element={<PrivateRoute><TestCases /></PrivateRoute>} />
+<Route
+  path="/project/:id/testcases"
+  element={
+    <PrivateRoute>
+      <TestCases />
+    </PrivateRoute>
+  }
+/>
 
           {/* Test / run */}
           <Route path="/project/:id/test" element={<PrivateRoute><TestRun /></PrivateRoute>} />

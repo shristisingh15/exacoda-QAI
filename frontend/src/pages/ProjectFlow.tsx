@@ -4,6 +4,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import "./ProjectFlow.css";
 import StepButtons from "./StepButton"; // ⬅️ shared stepper buttons
 
+// Use your API base (already set in your file). Keep as-is.
 const API_BASE = import.meta.env.VITE_API_BASE || "https://exacoda-qai-q8up.onrender.com";
 const MAX_BYTES = 10 * 1024 * 1024; // 10MB
 const ALLOWED = [
@@ -20,6 +21,8 @@ type ProjectDetails = {
   [k: string]: any;
 };
 
+import { useProject } from "./ProjectContext"; // <-- new import
+
 const ProjectFlow: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -33,6 +36,9 @@ const ProjectFlow: React.FC = () => {
   const [loadingProject, setLoadingProject] = useState<boolean>(false);
   const [projectErr, setProjectErr] = useState<string | null>(null);
 
+  // Project context setters
+  const { setProject, setUploadedFiles, setScenarios } = useProject();
+
   useEffect(() => {
     // fetch project details when id available
     if (!id) return;
@@ -41,6 +47,7 @@ const ProjectFlow: React.FC = () => {
       setLoadingProject(true);
       setProjectErr(null);
       try {
+        // fetch project UI object
         const res = await fetch(`${API_BASE}/api/projects/${id}`, { signal: ac.signal });
         if (!res.ok) {
           const t = await res.text().catch(() => "");
@@ -48,6 +55,53 @@ const ProjectFlow: React.FC = () => {
         }
         const json = await res.json();
         setProjectDetails(json || null);
+
+        // Populate ProjectContext with project id/name
+        if (json && json._id) {
+          try {
+            setProject(String(json._id), String(json.name || json.projectName || ""));
+          } catch (ctxErr) {
+            // ignore if context not ready
+            console.warn("setProject failed:", ctxErr);
+          }
+        }
+
+        // fetch files metadata (if any) and set in context
+        try {
+          const fRes = await fetch(`${API_BASE}/api/projects/${id}/files`);
+          if (fRes.ok) {
+            const filesJson = await fRes.json();
+            const filesConverted = (filesJson || []).map((f: any) => ({
+              _id: f._id,
+              filename: f.filename,
+              url: `${API_BASE}/api/projects/${id}/files/${f._id}`,
+              mimeType: f.mimetype,
+              version: f.version,
+              uploadedAt: f.uploadedAt,
+            }));
+            setUploadedFiles(filesConverted);
+          } else {
+            setUploadedFiles([]);
+          }
+        } catch (fErr) {
+          console.warn("Failed to load project files:", fErr);
+          setUploadedFiles([]);
+        }
+
+        // fetch scenarios (if any) and set in context
+        try {
+          const sRes = await fetch(`${API_BASE}/api/projects/${id}/scenarios`);
+          if (sRes.ok) {
+            const sJson = await sRes.json();
+            const items = Array.isArray(sJson.items) ? sJson.items : [];
+            setScenarios(items);
+          } else {
+            setScenarios([]);
+          }
+        } catch (sErr) {
+          console.warn("Failed to load project scenarios:", sErr);
+          setScenarios([]);
+        }
       } catch (e: any) {
         if (e?.name !== "AbortError") setProjectErr(e.message || "Failed to load project");
       } finally {
@@ -88,6 +142,40 @@ const ProjectFlow: React.FC = () => {
         const text = await res.text().catch(() => "");
         throw new Error(`HTTP ${res.status} ${text}`);
       }
+      const result = await res.json().catch(() => null);
+
+      // After successful upload, refresh files & scenarios in context so Test page has the latest data
+      try {
+        // fetch updated files list
+        const fRes = await fetch(`${API_BASE}/api/projects/${id}/files`);
+        if (fRes.ok) {
+          const filesJson = await fRes.json();
+          const filesConverted = (filesJson || []).map((f: any) => ({
+            _id: f._id,
+            filename: f.filename,
+            url: `${API_BASE}/api/projects/${id}/files/${f._id}`,
+            mimeType: f.mimetype,
+            version: f.version,
+            uploadedAt: f.uploadedAt,
+          }));
+          setUploadedFiles(filesConverted);
+        }
+      } catch (fErr) {
+        console.warn("Failed to refresh files after upload:", fErr);
+      }
+
+      try {
+        // fetch scenarios (if generation happens server-side automatically)
+        const sRes = await fetch(`${API_BASE}/api/projects/${id}/scenarios`);
+        if (sRes.ok) {
+          const sJson = await sRes.json();
+          const items = Array.isArray(sJson.items) ? sJson.items : [];
+          setScenarios(items);
+        }
+      } catch (sErr) {
+        console.warn("Failed to refresh scenarios after upload:", sErr);
+      }
+
       // success → go to Flow Analysis
       navigate(`/project/${id}/analysis`, { replace: true });
     } catch (e: any) {

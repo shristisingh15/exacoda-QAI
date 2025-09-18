@@ -572,6 +572,88 @@ const docText = buffer && latestFile
   }
 });
 
+// add after your generate-scenarios route in backend/src/routes/project.ts
+//
+// POST /projects/:id/generate-tests
+// add/replace this in backend/src/routes/project.ts (replace previous generate-tests route)
+// POST /projects/:id/generate-tests
+// Body: { framework: string, language: string, scenarios: Scenario[], uploadedFiles: UploadedFile[] }
+projectsRouter.post("/:id/generate-tests", async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    const { framework, language, scenarios, uploadedFiles } = req.body || {};
+
+    if (!framework || !language || !Array.isArray(scenarios) || scenarios.length === 0) {
+      return res.status(400).json({
+        ok: false,
+        message: "framework, language and scenarios are required",
+      });
+    }
+
+    const outputs: any[] = [];
+
+    // Loop over each scenario individually and generate separate code
+    for (const sc of scenarios) {
+      const prompt = `
+You are an expert QA engineer. Generate runnable test code.
+
+Project ID: ${projectId}
+Framework: ${framework}
+Language: ${language}
+
+Uploaded files: ${(uploadedFiles || [])
+        .map((f: any) => f.filename || f)
+        .join(", ")}
+
+Scenario: ${sc.title}
+Description: ${sc.description || ""}
+Steps: ${(sc.steps || []).join(" -> ")}
+Expected: ${sc.expected_result || ""}
+
+Return the generated test code only. Do NOT include commentary.
+`;
+
+      try {
+        const response = await client.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.2,
+          max_tokens: 2000,
+        });
+
+        const code = response.choices?.[0]?.message?.content || "";
+
+        outputs.push({
+          scenarioId: sc._id || null,
+          title: sc.title,
+          code,
+        });
+      } catch (err: any) {
+        console.error("generate-tests: OpenAI call failed for scenario", sc.title, err);
+        outputs.push({
+          scenarioId: sc._id || null,
+          title: sc.title,
+          code: null,
+          error: String(err?.message || err),
+        });
+      }
+    }
+
+    // Return array of codes instead of a single string
+    return res.json({ ok: true, codes: outputs });
+  } catch (err: any) {
+    console.error("generate-tests failed:", err);
+    return res.status(500).json({
+      ok: false,
+      message: "generate-tests failed",
+      error: String(err?.message || err),
+    });
+  }
+});
+
+
+
+
 //
 // GET /projects/:id/scenarios
 //
@@ -600,3 +682,25 @@ projectsRouter.get("/test/openai", async (req, res) => {
     res.status(500).json({ error: String(err.message || err) });
   }
 });
+// POST /projects/:id/run
+projectsRouter.post("/:id/run", async (req, res) => {
+  try {
+    const { framework, language, scenarios, code } = req.body || {};
+    console.log("▶️ run-tests called:", { framework, language, scenarioCount: scenarios?.length });
+
+    // For now just mock results
+    const results = (scenarios || []).map((s: any, i: number) => ({
+      _id: String(i),
+      title: s.title || `Scenario ${i + 1}`,
+      passed: Math.random() > 0.3, // random pass/fail
+      durationMs: 120 + Math.floor(Math.random() * 300),
+      details: `Executed ${s.steps?.length || 0} steps.`,
+    }));
+
+    return res.json({ ok: true, results });
+  } catch (err: any) {
+    console.error("run-tests failed:", err);
+    return res.status(500).json({ ok: false, message: "run-tests failed", error: String(err.message || err) });
+  }
+});
+
