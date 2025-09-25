@@ -36,7 +36,8 @@ export type TestRunConfig = {
   language: string | null;
   scenarios: Scenario[];
   uploadedFiles: UploadedFile[];
-  code?: string;
+  code?: string | null;
+  codes?: { scenarioID: string; title:string; code:string }[];
 };
 
 type ProjectContextType = {

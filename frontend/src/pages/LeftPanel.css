@@ -233,3 +233,28 @@
   color: #fff;
   transform: translateY(-1px);
 }
+/* Wrap the logo + text vertically */
+.logo-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* QAI text styling */
+.logo-text {
+  margin-top: 8px;
+  font-weight: 800;       /* bolder */
+  font-size: 22px;        /* bigger */
+  color: #111827;         /* dark gray / near-black */
+  letter-spacing: 1px;    /* optional for style */
+  text-transform: uppercase; /* makes it stand out */
+}
+
+
+/* Disabled nav items (greyed out) */
+.sidebar-nav li.disabled {
+  color: #9ca3af; /* grey */
+  pointer-events: none; /* makes unclickable */
+  opacity: 0.6;
+  cursor: default;
+}

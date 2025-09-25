@@ -1,65 +1,69 @@
+// frontend/src/pages/LeftPanel.tsx
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { auth } from "../auth";
 import "./LeftPanel.css";
-
-// import logo - update path if your asset is elsewhere
-import logoSrc from "../assets/logo.png.jpeg";
+import logoSrc from "../assets/logo.png.jpeg"; // adjust path/name
 
 const API_BASE = import.meta.env.VITE_API_BASE || "https://exacoda-qai-q8up.onrender.com";
 
-type Project = { _id: string; name: string; type?: string };
-type ProjectFile = { _id: string; filename: string; version: string };
+type Project = { _id: string; name: string; description?: string; type?: string };
+type ProjectFile = { _id: string; filename: string; version?: string };
 
 const LeftPanel: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
   const [projects, setProjects] = useState<Project[]>([]);
-  const [projectsExpanded, setProjectsExpanded] = useState<boolean>(false); // collapsed by default
-  const [expandedProject, setExpandedProject] = useState<string | null>(null); // single project's files open
+  const [projectsExpanded, setProjectsExpanded] = useState<boolean>(false);
+  const [expandedProject, setExpandedProject] = useState<string | null>(null);
   const [files, setFiles] = useState<Record<string, ProjectFile[]>>({});
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [err, setErr] = useState<string | null>(null);
-
-  const handleLogout = () => {
-    auth.logout();
-    navigate("/login", { replace: true });
-    window.location.reload();
-  };
 
   const isActive = (path: string) => location.pathname.startsWith(path);
   const isProjectActive = (id: string) => location.pathname.startsWith(`/project/${id}`);
 
-  // load projects
-  async function loadProjects() {
+  // fetch projects from backend (reads from Mongo via backend)
+  const loadProjects = async () => {
     setLoading(true);
     setErr(null);
     try {
       const res = await fetch(`${API_BASE}/api/projects?limit=100`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      setProjects(Array.isArray(json.items) ? json.items : []);
+      // backend returns { items: [...] } or an array — handle both
+      const items = Array.isArray(json.items) ? json.items : Array.isArray(json) ? json : [];
+      // Normalize to our Project shape (some backends use different field names)
+      const normalized = items.map((it: any) => ({
+        _id: it._id || it.id,
+        name: it.name || it.projectName || it.title || "Untitled",
+        description: it.description || "",
+        type: it.type || it.projectType || "Web",
+      }));
+      setProjects(normalized);
     } catch (e: any) {
+      console.error("Failed loading projects", e);
       setErr(e.message || "Failed to load projects");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  // load files for a single project
+  // load files for a project (keeps previous cached files)
   async function loadFiles(projectId: string) {
     try {
       const res = await fetch(`${API_BASE}/api/projects/${projectId}/files`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setFiles((prev) => ({ ...prev, [projectId]: data }));
+      const json = await res.json();
+      const list = Array.isArray(json) ? json : Array.isArray(json.items) ? json.items : [];
+      setFiles((prev) => ({ ...prev, [projectId]: list }));
     } catch (e) {
-      console.error("Failed to fetch files", e);
+      console.warn("Failed to fetch files", e);
     }
   }
 
-  // toggle a single project's file list
+  // toggle file list
   const toggleProjectFiles = (projectId: string) => {
     if (expandedProject === projectId) {
       setExpandedProject(null);
@@ -69,7 +73,6 @@ const LeftPanel: React.FC = () => {
     }
   };
 
-  // download a file
   const handleDownload = async (projectId: string, file: ProjectFile) => {
     try {
       const res = await fetch(`${API_BASE}/api/projects/${projectId}/files/${file._id}`);
@@ -89,7 +92,6 @@ const LeftPanel: React.FC = () => {
 
   useEffect(() => {
     loadProjects();
-    // auto-sync when Dashboard broadcasts changes
     const onChanged = () => loadProjects();
     window.addEventListener("projects:changed", onChanged);
     return () => window.removeEventListener("projects:changed", onChanged);
@@ -97,70 +99,51 @@ const LeftPanel: React.FC = () => {
 
   return (
     <div className="sidebar">
-      {/* LOGO */}
       <div className="sidebar-logo" onClick={() => navigate("/dashboard")} role="button" aria-label="Go to dashboard">
-        <img src={logoSrc} alt="Exacoda logo" />
+        <div className="logo-wrapper">
+          <img src={logoSrc} alt="Exacoda logo" />
+          <div className="logo-text">QAI</div>
+        </div>
       </div>
 
-      {/* Navigation Section (top) */}
       <div className="sidebar-nav">
         <ul>
-          <li
-            className={isActive("/dashboard") ? "active" : ""}
-            onClick={() => navigate("/dashboard")}
-          >
-            <span className="nav-left">📊 Dashboard</span>
+          <li className={isActive("/dashboard") ? "active" : ""} onClick={() => navigate("/dashboard")}>
+            <span className="nav-left">Dashboard</span>
           </li>
-
-          <li
-            className={isActive("/upload") ? "active" : ""}
-            onClick={() => navigate("/upload")}
-          >
-            <span className="nav-left">⬆️ Upload File</span>
+          <li className="disabled">
+            <span className="nav-left">Upload File</span>
           </li>
-
-          <li
-            className={isActive("/results") ? "active" : ""}
-            onClick={() => navigate("/results")}
-          >
-            <span className="nav-left">📜 Results</span>
+          <li className="disabled">
+            <span className="nav-left">Results</span>
           </li>
-
-          <li
-            className={isActive("/settings") ? "active" : ""}
-            onClick={() => navigate("/settings")}
-          >
-            <span className="nav-left">⚙️ Settings</span>
+          <li className="disabled">
+            <span className="nav-left">Settings</span>
           </li>
         </ul>
       </div>
 
-      {/* Projects toggle row (below Settings) */}
       <div
         className={`projects-toggle-row ${projectsExpanded ? "open" : ""}`}
         onClick={() => {
-          // if collapsing the whole projects area, also close any open project's files
           if (projectsExpanded) setExpandedProject(null);
           setProjectsExpanded((v) => !v);
         }}
         role="button"
         aria-expanded={projectsExpanded}
       >
-        <span className="projects-label">📁 Projects</span>
+        <span className="projects-label">Projects</span>
         <span className={`projects-chev ${projectsExpanded ? "open" : ""}`} aria-hidden>
           ▶
         </span>
       </div>
 
-      {/* Collapsible Projects list */}
       {projectsExpanded && (
         <div className="sidebar-projects">
           <ul className="project-list">
             {loading && <li className="muted">Loading…</li>}
             {err && <li className="error">{err}</li>}
-            {!loading && !err && projects.length === 0 && (
-              <li className="muted">No projects yet</li>
-            )}
+            {!loading && !err && projects.length === 0 && <li className="muted">No projects yet</li>}
 
             {!loading &&
               !err &&
@@ -174,7 +157,6 @@ const LeftPanel: React.FC = () => {
                     {p.name}
                   </button>
 
-                  {/* small caret to expand files */}
                   <button
                     className={`project-expand ${expandedProject === p._id ? "open" : ""}`}
                     onClick={(e) => {
@@ -187,7 +169,6 @@ const LeftPanel: React.FC = () => {
                     ▸
                   </button>
 
-                  {/* file list (toggle) */}
                   {expandedProject === p._id && files[p._id] && (
                     <ul className="file-list">
                       {files[p._id].map((f) => (
@@ -209,10 +190,16 @@ const LeftPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Footer Logout */}
       <div className="sidebar-footer">
-        <button className="logout-btn" onClick={handleLogout}>
-          🚪 Logout
+        <button
+          className="logout-btn"
+          onClick={() => {
+            auth.logout();
+            navigate("/login", { replace: true });
+            window.location.reload();
+          }}
+        >
+          Logout
         </button>
       </div>
     </div>

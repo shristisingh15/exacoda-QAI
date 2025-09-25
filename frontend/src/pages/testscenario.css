@@ -101,8 +101,54 @@
 .btn-delete { background: #fff5f5; border-color: #fecaca; color: #b91c1c; }
 .tile-meta { margin-left: auto; color: #9aa4ad; font-size: 12px; }
 
-/* empty small screens */
+/* section headers for partition */
+.tiles-section {
+  margin-top: 24px;
+}
+.tiles-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 12px;
+  cursor: default;
+}
+
+/* Expandable header */
+.tiles-section-title.expandable {
+  cursor: pointer;
+  color: #2563eb;
+  display: inline-block;
+}
+.tiles-section-title.expandable:hover {
+  text-decoration: underline;
+}
+
+/* small screens */
 @media (max-width: 640px) {
   .tiles-grid { grid-template-columns: 1fr; }
   .test-scenarios-root .controls-right { width: 100%; justify-content: space-between; margin-top: 8px; }
+}
+/* Disabled buttons */
+.disabled-btn {
+  background-color: #e5e7eb; /* light grey */
+  color: #9ca3af;           /* muted text */
+  cursor: not-allowed;
+  border: 1px solid #d1d5db;
+  opacity: 0.6;
+}
+
+.disabled-btn:hover {
+  background-color: #e5e7eb; /* no hover effect */
+  color: #9ca3af;
+}
+/* Grouping by business process */
+.tiles-section-title.expandable {
+  cursor: pointer;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tiles-section-title.expandable:hover {
+  text-decoration: underline;
 }

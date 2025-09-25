@@ -19,7 +19,12 @@ export default function TestScenariosPage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const { setScenarios: setCtxScenarios, selectScenario } = useProject();
+  const {
+    setScenarios: setCtxScenarios,
+    selectScenario,
+    setTestRunConfig,
+    uploadedFiles,
+  } = useProject();
 
   const [projectDetails, setProjectDetails] =
     useState<ProjectDetails | null>(null);
@@ -31,6 +36,7 @@ export default function TestScenariosPage(): JSX.Element {
   const [scenariosErr, setScenariosErr] = useState<string | null>(null);
 
   const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [showPrev, setShowPrev] = useState<boolean>(false);
 
   // fetch project meta
   useEffect(() => {
@@ -83,6 +89,8 @@ export default function TestScenariosPage(): JSX.Element {
         const json = await res.json();
         const list: Scenario[] = Array.isArray(json) ? json : json?.items ?? [];
         setScenarios(list);
+
+        // init selected map
         const map: Record<string, boolean> = {};
         list.forEach((s) => (map[s._id!] = false));
         setSelected(map);
@@ -114,37 +122,109 @@ export default function TestScenariosPage(): JSX.Element {
     }
   };
 
-  // Next button → save selected scenarios to context and navigate
-  const handleNext = () => {
+  // Next button → send selected scenarios to backend & navigate
+  const handleNext = async () => {
     if (!id) return;
     const chosen = scenarios.filter((s) => selected[s._id!]);
+
     if (chosen.length === 0) {
       alert("Please select at least one test scenario.");
       return;
     }
-    // update context
-    setCtxScenarios(chosen);
-    selectScenario(chosen[0]); // pick first as "primary"
-    // go to test cases page
-    navigate(`/project/${id}/testcases`);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/projects/${id}/generate-tests`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          framework: "JUnit", // default
+          language: "Java",
+          scenarios: chosen,
+          uploadedFiles,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        console.error("Generate-tests failed:", data);
+        alert(data?.message || data?.error || "Failed to generate tests");
+        return;
+      }
+
+      // save config into context
+      const configObj: any = {
+        framework: "JUnit",
+        language: "Java",
+        scenarios: chosen,
+        uploadedFiles: uploadedFiles || [],
+        ...(data.codes ? { codes: data.codes } : {}),
+        ...(data.code ? { code: data.code } : {}),
+      };
+
+      if (typeof setTestRunConfig === "function") {
+        setTestRunConfig(configObj);
+      }
+
+      // also keep them in context for later pages
+      setCtxScenarios(chosen);
+      selectScenario(chosen[0]);
+
+      navigate(`/project/${id}/testcases`);
+    } catch (err: any) {
+      console.error("handleNext error:", err);
+      alert("Unexpected error generating test cases.");
+    }
   };
 
-  const tiles = useMemo(() => scenarios, [scenarios]);
+  // ------------- Partition into recent vs previous -------------
+  function scenarioTimestamp(s: Scenario): number {
+    const candidates = [(s as any).createdAt, (s as any).uploadedAt];
+    for (const c of candidates) {
+      if (typeof c === "string") {
+        const t = Date.parse(c);
+        if (!isNaN(t)) return t;
+      }
+    }
+    if (s._id && typeof s._id === "string" && s._id.length >= 8) {
+      const ts = parseInt(s._id.slice(0, 8), 16) * 1000;
+      if (!isNaN(ts)) return ts;
+    }
+    return 0;
+  }
+
+  const { recentScenarios, previousScenarios } = useMemo(() => {
+    if (!scenarios || scenarios.length === 0) {
+      return { recentScenarios: [], previousScenarios: [] };
+    }
+    const sorted = [...scenarios].sort(
+      (a, b) => scenarioTimestamp(b) - scenarioTimestamp(a)
+    );
+    const newestTs = scenarioTimestamp(sorted[0]);
+    if (!newestTs) return { recentScenarios: sorted, previousScenarios: [] };
+
+    const BATCH_WINDOW_MS = 5 * 60 * 1000; // 5 min window
+    const recent: Scenario[] = [];
+    const prev: Scenario[] = [];
+    sorted.forEach((s) => {
+      const ts = scenarioTimestamp(s);
+      if (Math.abs(ts - newestTs) <= BATCH_WINDOW_MS) {
+        recent.push(s);
+      } else {
+        prev.push(s);
+      }
+    });
+    return { recentScenarios: recent, previousScenarios: prev };
+  }, [scenarios]);
 
   return (
-    <div
-      className="project-page test-scenarios-root"
-      style={{ minHeight: "100vh" }}
-    >
+    <div className="project-page test-scenarios-root" style={{ minHeight: "100vh" }}>
       {/* Topbar */}
       <div className="topbar">
         <Link to="/dashboard">← Back to Projects</Link>
         <div className="topbar-actions">
           <button type="button">Settings</button>
-          <button
-            type="button"
-            onClick={() => (window.location.href = "/login")}
-          >
+          <button type="button" onClick={() => (window.location.href = "/login")}>
             Logout
           </button>
         </div>
@@ -156,33 +236,29 @@ export default function TestScenariosPage(): JSX.Element {
           {projectDetails?.name ||
             (loadingProject ? "Loading…" : "Test Scenarios")}
         </h2>
-
-        {projectDetails?.description ? (
-          <p className="muted">{projectDetails.description}</p>
-        ) : (
-          <p className="muted">Test scenarios for the selected project.</p>
-        )}
-
+        <p className="muted">
+          {projectDetails?.description ||
+            "Test scenarios for the selected project."}
+        </p>
         {projectErr && <p style={{ color: "crimson" }}>{projectErr}</p>}
       </div>
 
       {/* Stepper */}
       <StepButtons />
-
       <hr className="section-divider" />
 
       {/* Controls */}
       <div className="controls-row">
-        <button className="scenario-btn">＋ New Scenario</button>
-        <button className="scenario-btn">Bulk Actions</button>
+        <button className="scenario-btn disabled-btn" disabled>
+          ＋ New Scenario
+        </button>
+        <button className="scenario-btn disabled-btn" disabled>
+          Bulk Actions
+        </button>
 
         <div className="controls-right">
           <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={allSelected}
-              onChange={toggleSelectAll}
-            />
+            <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} />
             <span>Select all</span>
           </label>
 
@@ -191,73 +267,102 @@ export default function TestScenariosPage(): JSX.Element {
               ? `${Object.values(selected).filter(Boolean).length} selected`
               : "0 selected"}
           </div>
+
+          <div style={{ marginLeft: 12 }}>
+  <button
+    className="btn btn-primary"
+    disabled={!anySelected}
+    onClick={() => {
+      if (!anySelected) {
+        alert("Please select at least one test scenario.");
+        return;
+      }
+      handleNext();
+    }}
+  >
+    Next →
+  </button>
+</div>
+
         </div>
       </div>
 
-      {/* Tiles grid */}
-      <div className="tiles-wrap">
-        {loadingScenarios ? (
-          <p>Loading scenarios…</p>
-        ) : scenariosErr ? (
-          <p style={{ color: "crimson" }}>{scenariosErr}</p>
-        ) : tiles.length === 0 ? (
-          <div className="empty-state">
-            <p>
-              No test scenarios yet. Click “Regenerate Scenarios” or “New
-              Scenario” to create some.
-            </p>
-          </div>
-        ) : (
-          <div className="tiles-grid">
-            {tiles.map((s, idx) => (
-              <article key={s._id} className="tile-card">
-                <div className="tile-header">
-                  <label className="tile-select">
-                    <input
-                      type="checkbox"
-                      checked={!!selected[s._id!]}
-                      onChange={() => toggleSelect(s._id!)}
-                    />
-                  </label>
-                  <h3 className="tile-title">
-                    {idx + 1}. {s.title}
-                  </h3>
-                
+      {/* Recent Scenarios */}
+      <div className="tiles-section">
+        <h3 className="tiles-section-title">Recent Scenarios</h3>
+        <div className="tiles-grid">
+          {recentScenarios.map((s, idx) => (
+            <article key={s._id} className="tile-card">
+              <div className="tile-header">
+                <label className="tile-select">
+                  <input
+                    type="checkbox"
+                    checked={!!selected[s._id!]}
+                    onChange={() => toggleSelect(s._id!)}
+                  />
+                </label>
+                <h3 className="tile-title">{idx + 1}. {s.title}</h3>
+              </div>
+              {s.description && <p className="tile-desc">{s.description}</p>}
+              {s.steps && (
+                <ol className="tile-steps">
+                  {s.steps.map((st, i) => <li key={i}>{st}</li>)}
+                </ol>
+              )}
+              {s.expected_result && (
+                <div className="tile-expected">
+                  <strong>Expected:</strong> {s.expected_result}
                 </div>
+              )}
+            </article>
+          ))}
+        </div>
+      </div>
 
-                {s.description && (
-                  <p className="tile-desc">{s.description}</p>
-                )}
-
-                {s.steps && s.steps.length > 0 && (
-                  <ol className="tile-steps">
-                    {s.steps.map((st, i) => (
-                      <li key={i}>{st}</li>
-                    ))}
-                  </ol>
-                )}
-
-                {s.expected_result && (
-                  <div className="tile-expected">
-                    <strong>Expected:</strong> {s.expected_result}
+      {/* Previous Scenarios */}
+      {previousScenarios.length > 0 && (
+        <div className="tiles-section" style={{ marginTop: 20 }}>
+          <h3
+            className="tiles-section-title expandable"
+            onClick={() => setShowPrev((p) => !p)}
+          >
+            {showPrev
+              ? `Hide Previous Scenarios ▲ (${previousScenarios.length})`
+              : `Show Previous Scenarios ▼ (${previousScenarios.length})`}
+          </h3>
+          {showPrev && (
+            <div className="tiles-grid">
+              {previousScenarios.map((s, idx) => (
+                <article key={s._id} className="tile-card">
+                  <div className="tile-header">
+                    <label className="tile-select">
+                      <input
+                        type="checkbox"
+                        checked={!!selected[s._id!]}
+                        onChange={() => toggleSelect(s._id!)}
+                      />
+                    </label>
+                    <h3 className="tile-title">{idx + 1}. {s.title}</h3>
                   </div>
-                )}
-              </article>
-            ))}
-          </div>
-        )}
-      </div>
+                  {s.description && <p className="tile-desc">{s.description}</p>}
+                  {s.steps && (
+                    <ol className="tile-steps">
+                      {s.steps.map((st, i) => <li key={i}>{st}</li>)}
+                    </ol>
+                  )}
+                  {s.expected_result && (
+                    <div className="tile-expected">
+                      <strong>Expected:</strong> {s.expected_result}
+                    </div>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* Next button */}
-      <div style={{ marginTop: 20, textAlign: "center" }}>
-        <button
-          className="btn btn-primary"
-          onClick={handleNext}
-          disabled={!anySelected}
-        >
-          Next →
-        </button>
-      </div>
+      <div style={{ height: 40 }} />
     </div>
   );
 }

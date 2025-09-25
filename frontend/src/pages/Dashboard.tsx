@@ -252,13 +252,13 @@ const Dashboard: React.FC = () => {
                 </div>
                 <p className="description">{project.description}</p>
                 <div className="project-footer">
-                  <div className="date">📅 {project.date || "—"}</div>
+                  <div className="date">{project.date || "—"}</div>
                   <div className="step">Step {project.step || "—"}</div>
                 </div>
                 <div className="actions">
-                  <button onClick={() => openEditModal(project)}>✏️ Edit</button>
+                  <button onClick={() => openEditModal(project)}> Edit</button>
                   <button onClick={() => project._id && handleDeleteProject(project._id)}>
-                    🗑️ Delete
+                     Delete
                   </button>
                 </div>
               </div>

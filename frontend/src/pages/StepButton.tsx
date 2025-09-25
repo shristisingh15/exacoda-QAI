@@ -6,7 +6,7 @@ const steps = [
   { path: "root", label: "1. Upload Documents" },
   { path: "analysis", label: "2. Flow Analysis" },
   { path: "scenarios", label: "3. Test Scenarios" },
-  { path: "cases", label: "4. Test Cases" },
+  { path: "testcases", label: "4. Test Cases" },
   { path: "test", label: "5. Test" },
 ];
 
