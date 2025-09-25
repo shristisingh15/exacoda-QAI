@@ -158,8 +158,12 @@ export default function TestScenariosPage(): JSX.Element {
         language: "Java",
         scenarios: chosen,
         uploadedFiles: uploadedFiles || [],
+        // preserve any code fields you already used
         ...(data.codes ? { codes: data.codes } : {}),
         ...(data.code ? { code: data.code } : {}),
+        // --- NEW, minimal additions to keep test cases returned by the backend ---
+        ...(data.testCases ? { testCases: data.testCases } : {}),
+        ...(data.raw ? { raw: data.raw } : {}),
       };
 
       if (typeof setTestRunConfig === "function") {

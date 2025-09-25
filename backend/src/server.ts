@@ -7,6 +7,8 @@ import { businessRouter } from "./routes/businessRoutes.js";
 import { dashboardRouter } from "./routes/dashboard.js";
 import { debugRouter } from "./routes/debug.js";
 import { projectsRouter } from "./routes/projects.js";
+import generateTestsRouter from "./routes/generateTestCases.js";
+
 
 const app = express();
 
@@ -24,7 +26,7 @@ app.use("/debug", debugRouter);
 app.use("/api/business", businessRouter);
 app.use("/api/projects", projectsRouter);
 app.use("/dashboard", dashboardRouter);
-
+app.use(generateTestsRouter);
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
 

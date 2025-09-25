@@ -197,11 +197,7 @@ const Dashboard: React.FC = () => {
   return (
     <div className="dashboard">
       <div className="main-content">
-        {/* Top header */}
-        <div className="top-header">
-          <h1>QAI</h1>
-        </div>
-
+    
         {/* Page title */}
         <div className="page-header">
           <h2>Test Projects</h2>
