@@ -11,6 +11,11 @@ const TestCaseSchema = new mongoose.Schema({
   description: { type: String },
   steps: { type: [String], default: [] },
   expected_result: { type: String },
+  type: {
+    type: String,
+    enum: ["Unit", "Integration", "System", "Other", "Positive", "Negative", "Edge", "Security", "Performance", "Usability"],
+    default: "Other",
+  },
 
   createdAt: { type: Date, default: Date.now },
   source: { type: String, default: "manual" }, // or "ai"

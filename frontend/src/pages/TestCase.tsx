@@ -33,6 +33,7 @@ const FRAMEWORK_OPTIONS = ["JUnit", "Selenium", "Mocha", "Jest", "PyTest"];
 const LANGUAGE_OPTIONS = ["Java", "TypeScript", "JavaScript", "Python", "C#"];
 
 export default function TestCasesPage(): JSX.Element {
+  const [filterType, setFilterType] = useState<string>("All");
   const location = useLocation() as any;
   const navigate = useNavigate();
   const params = useParams<{ id?: string }>();
@@ -235,7 +236,7 @@ export default function TestCasesPage(): JSX.Element {
       }
 
       // navigate to run page with generated codes in state
-      navigate(`/project/${projectId}/run`, {
+      navigate(`/project/${projectId}/test`, {
         state: { framework, language, testCases: selectedCases, codes: normalized },
       });
     } catch (err: any) {
