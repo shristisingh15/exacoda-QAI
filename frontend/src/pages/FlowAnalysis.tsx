@@ -127,7 +127,7 @@ export default function FlowAnalysis() {
             setItems(fallback);
             setSelectedIds({});
             if (fallback.length === 0) {
-              setFallbackMessage("AI didn't produce any business processes and none were found in Mongo.");
+              setFallbackMessage("Business Process");
             }
           }
         }
@@ -268,7 +268,7 @@ const handleFileUpload = async (file: File) => {
       setItems(matched);
       setSelectedIds({});
       if (matched.length > 0) {
-        setFallbackMessage("AI generation failed — showing existing business processes from Mongo.");
+        setFallbackMessage("Business Processes f");
       } else {
         setErr(err?.message || "Failed to regenerate and no fallback items found in Mongo.");
       }
