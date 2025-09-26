@@ -303,7 +303,7 @@ const handleFileUpload = async (file: File) => {
 
       <StepButtons />
 
-      <div style={{ height: "80px" }} />
+      <div style={{ height: "40px" }} />
 
 
       <div className="controls-row">

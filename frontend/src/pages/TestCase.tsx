@@ -276,7 +276,7 @@ export default function TestCasesPage(): JSX.Element {
         </div>
       </div>
 
-         <div style={{ height: "80px" }} />
+         <div style={{ height: "40px" }} />
 
       {/* Controls */}
       <div className="controls-row" style={{ alignItems: "center" }}>
