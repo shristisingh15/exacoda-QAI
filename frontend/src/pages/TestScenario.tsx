@@ -4,6 +4,8 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import StepButtons from "./StepButton";
 import { useProject, Scenario } from "./ProjectContext"; // ✅ use context
 import "./testscenario.css";
+import { FaSpinner } from "react-icons/fa";
+
 
 const API_BASE =
   import.meta.env.VITE_API_BASE || "https://exacoda-qai-q8up.onrender.com";
@@ -230,14 +232,37 @@ const [generating, setGenerating] = useState<boolean>(false);
 
   // 🔹 Group scenarios by business process
 const groupedByBP = useMemo(() => {
-  const map: Record<string, Scenario[]> = {};
-  scenarios.forEach((s) => {
-    const key = (s as any).businessProcessName || "Unassigned";
-    if (!map[key]) map[key] = [];
-    map[key].push(s);
-  });
-  return map;
+  // map: bpKey -> { name, scenarios: Map<scenarioId, scenario> }
+  const bpMap = new Map<string, { name: string; scenarios: Map<string, any> }>();
+
+  for (const s of scenarios) {
+    // derive a stable bp key (use id if available, else fallback to name)
+    const bpId = (s as any).businessProcessId ? String((s as any).businessProcessId) : null;
+    const bpName = (s as any).businessProcessName || "Unassigned";
+    const bpKey = bpId || bpName;
+
+    if (!bpMap.has(bpKey)) {
+      bpMap.set(bpKey, { name: bpName, scenarios: new Map() });
+    }
+
+    const bucket = bpMap.get(bpKey)!;
+    const sid = String(s._id || `${bpKey}-${Math.random()}`); // fallback unique key if _id missing
+
+    // deduplicate by scenario id: only add if not present
+    if (!bucket.scenarios.has(sid)) {
+      bucket.scenarios.set(sid, s);
+    }
+  }
+
+  // convert map -> plain object { bpName: scenarioArray }
+  const result: Record<string, any[]> = {};
+  for (const [bpKey, { name, scenarios: scenMap }] of bpMap.entries()) {
+    result[name] = Array.from(scenMap.values());
+  }
+  return result;
 }, [scenarios]);
+
+
 
 
   return (
@@ -293,8 +318,9 @@ const groupedByBP = useMemo(() => {
           </div>
 
           <div style={{ marginLeft: 12 }}>
+  
   <button
-  className="btn btn-primary"
+  className={`btn btn-primary ${generating ? "btn-generating" : ""}`}
   disabled={!anySelected || generating}
   onClick={() => {
     if (!anySelected) {
@@ -303,9 +329,24 @@ const groupedByBP = useMemo(() => {
     }
     handleNext();
   }}
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    justifyContent: "center",
+    fontWeight: "600",
+  }}
 >
-  {generating ? "Generating…" : "Next →"}
+  {generating ? (
+    <>
+      <FaSpinner className="spin-icon" />
+      Generating…
+    </>
+  ) : (
+    "Next →"
+  )}
 </button>
+
 
 </div>
 
@@ -337,10 +378,13 @@ const groupedByBP = useMemo(() => {
             </div>
             {s.description && <p className="tile-desc">{s.description}</p>}
             {s.steps && (
-              <ol className="tile-steps">
-                {s.steps.map((st, i) => <li key={i}>{st}</li>)}
-              </ol>
-            )}
+  <ol className="tile-steps">
+    {s.steps.map((st: string, i: number) => (
+      <li key={i}>{st}</li>
+    ))}
+  </ol>
+)}
+
             {s.expected_result && (
               <div className="tile-expected">
                 <strong>Expected:</strong> {s.expected_result}

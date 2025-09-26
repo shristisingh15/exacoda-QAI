@@ -152,3 +152,21 @@
 .tiles-section-title.expandable:hover {
   text-decoration: underline;
 }
+/* Highlighted state */
+.btn-generating {
+  background-color: #ff9800 !important; /* orange highlight */
+  border-color: #e68900 !important;
+  color: #fff !important;
+  box-shadow: 0 0 12px rgba(255, 152, 0, 0.6);
+}
+
+/* Spinner animation */
+.spin-icon {
+  animation: spin 1s linear infinite;
+  font-size: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

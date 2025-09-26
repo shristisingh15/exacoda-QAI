@@ -728,8 +728,8 @@ projectsRouter.post("/:id/generate-scenarios", upload.none(), async (req, res) =
       parsed.forEach((s: any) => {
         docsToInsert.push({
           projectId,
-          businessProcessId: bp._id,
-          businessProcessName: bp.name,
+          businessProcessId: bp?._id,
+          businessProcessName: bp?.name || "",
           title: s.title || s.name || "Untitled scenario",
           description: s.description || s.summary || "",
           steps: Array.isArray(s.steps) ? s.steps.map(String) : (s.steps ? [String(s.steps)] : []),
