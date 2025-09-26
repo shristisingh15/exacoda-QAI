@@ -1,4 +1,5 @@
 import { Router } from "express";
+import mongoose from "mongoose";
 import { BusinessProcess } from "../models/BusinessProcess";
 
 export const businessRouter = Router();
@@ -37,6 +38,7 @@ businessRouter.get("/", async (req, res, next) => {
     next(e);
   }
 });
+
 // PUT /api/business/:id  -> update a business process
 businessRouter.put("/:id", async (req, res, next) => {
   try {
@@ -52,5 +54,33 @@ businessRouter.put("/:id", async (req, res, next) => {
 
     if (!doc) return res.status(404).json({ message: "not found" });
     res.json(doc);
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
+});
+
+// ✅ NEW: GET /api/business/matched/:projectId
+businessRouter.get("/matched/:projectId", async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const projObjId = mongoose.Types.ObjectId.isValid(projectId)
+      ? new mongoose.Types.ObjectId(projectId)
+      : projectId;
+
+    const items = await BusinessProcess.find({
+      projectId: projObjId,
+      matched: true,
+    })
+      .sort({ score: -1, updatedAt: -1, createdAt: -1 })
+      .lean();
+
+    return res.json({ items, total: items.length });
+  } catch (err: any) {
+    console.error("❌ GET /api/business/matched/:projectId error:", err);
+    return res.status(500).json({
+      ok: false,
+      message: "Failed to load matched business processes",
+      error: String(err?.message || err),
+    });
+  }
 });

@@ -8,7 +8,9 @@ import ProjectFlow from "./pages/ProjectFlow";
 import LeftPanel from "./pages/LeftPanel";
 import LoginPage from "./pages/Login";
 import { auth } from "./auth";
+import UploadDocument from "./pages/UploadDocument";
 import FlowAnalysis from "./pages/FlowAnalysis";
+
 
 // Optional pages — create these files or leave as placeholders below
 import TestScenarios from "./pages/TestScenario";
@@ -90,6 +92,20 @@ function AppLayout() {
 
           {/* Project flow (Upload) */}
           <Route path="/project/:id" element={<PrivateRoute><ProjectFlow /></PrivateRoute>} />
+
+<Route path="/debug-upload" element={<UploadDocument />} />
+<Route path="/project/:id/upload" element={<PrivateRoute><UploadDocument /></PrivateRoute>} />
+
+{/* fallback route so you can open page without a projectId */}
+<Route
+  path="/upload-document"
+  element={
+    <PrivateRoute>
+      <UploadDocument />
+    </PrivateRoute>
+  }
+/>
+
 
           {/* Flow Analysis */}
           <Route path="/project/:id/analysis" element={<PrivateRoute><FlowAnalysis /></PrivateRoute>} />

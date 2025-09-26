@@ -26,7 +26,7 @@ type GeneratedCode = {
 const API_BASE =
   import.meta.env.VITE_API_BASE || "https://exacoda-qai-q8up.onrender.com";
 
-const FRAMEWORK_OPTIONS = ["JUnit", "TestNG", "Mocha", "Jest", "PyTest"];
+const FRAMEWORK_OPTIONS = ["JUnit", "Selenium", "Mocha", "Jest", "PyTest"];
 const LANGUAGE_OPTIONS = ["Java", "TypeScript", "JavaScript", "Python", "C#"];
 
 export default function TestCasesPage(): JSX.Element {
@@ -38,7 +38,6 @@ export default function TestCasesPage(): JSX.Element {
   const projectCtx = (useProject() as any) || {};
   const { setTestRunConfig } = projectCtx || {};
 
-  // Many places the app may have put test cases & raw AI output — try them all.
   const ctxConfig =
     projectCtx.testRunConfig ||
     projectCtx.test_run_config ||
@@ -61,7 +60,6 @@ export default function TestCasesPage(): JSX.Element {
   const testCases: TestCase[] = testCasesFromCtx ?? stateTestCases ?? [];
   const raw: string = (testCases.length === 0 ? (stateRaw ?? rawFromCtx ?? "") : (stateRaw ?? rawFromCtx ?? ""));
 
-  // project display info
   const projectDisplayName =
     (projectCtx && (projectCtx.currentProjectName || projectCtx.projectName || projectCtx.name)) ||
     (ctxConfig && (ctxConfig.projectName || ctxConfig.name)) ||
@@ -69,17 +67,15 @@ export default function TestCasesPage(): JSX.Element {
 
   const projectSubtitle = (projectCtx && projectCtx.project?.description) || "";
 
-  // dropdown defaults
   const initialFramework = (ctxConfig && (ctxConfig.framework || ctxConfig.frameworkName)) || "JUnit";
   const initialLanguage = (ctxConfig && (ctxConfig.language || ctxConfig.lang)) || "Java";
 
   const [framework, setFramework] = useState<string>(initialFramework);
   const [language, setLanguage] = useState<string>(initialLanguage);
 
-  // selection map keyed by index
   const initialSelection = useMemo(() => {
     const m: Record<number, boolean> = {};
-    for (let i = 0; i < testCases.length; i++) m[i] = true; // default to selected
+    for (let i = 0; i < testCases.length; i++) m[i] = true;
     return m;
   }, [testCases.length]);
 
@@ -90,11 +86,8 @@ export default function TestCasesPage(): JSX.Element {
 
   const [generating, setGenerating] = useState<boolean>(false);
   const [genError, setGenError] = useState<string | null>(null);
-  const [generatedCodes, setGeneratedCodes] = useState<GeneratedCode[]>(
-    (ctxConfig && Array.isArray((ctxConfig as any).codes) ? (ctxConfig as any).codes : []) || []
-  );
 
-  // Choose project id: route param preferred, then context/config/state fallbacks
+  // prefer route param, fallback to context/config/state
   const projectId: string | null =
     routeProjectId ||
     projectCtx?.currentProjectId ||
@@ -103,22 +96,49 @@ export default function TestCasesPage(): JSX.Element {
     (state && state.projectId) ||
     null;
 
-  // sync framework/lang into context if setter exists
-  useEffect(() => {
-    if (typeof setTestRunConfig === "function") {
-      const newCfg = {
-        ...(ctxConfig || {}),
-        framework,
-        language,
-      };
-      try {
-        setTestRunConfig(newCfg);
-      } catch {}
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [framework, language]);
+    // Safe sync of framework/language into context:
+  // Only call setTestRunConfig when framework or language have actually changed
+  // compared to the last values we pushed — prevents infinite update loops.
+  const lastPushedRef = React.useRef<{ framework?: string; language?: string }>({
+    framework: initialFramework,
+    language: initialLanguage,
+  });
 
-  // reset selected map when testCases change
+  useEffect(() => {
+    if (typeof setTestRunConfig !== "function") return;
+
+    const last = lastPushedRef.current;
+    if (last.framework === framework && last.language === language) {
+      // nothing changed since last push, avoid calling setter
+      return;
+    }
+
+    // update last pushed values first to avoid races
+    lastPushedRef.current = { framework, language };
+
+    try {
+      // merge with existing ctxConfig if present — but avoid passing an always-new object
+      // when ctxConfig already matches values (small guard)
+      const shouldPatch =
+        !(ctxConfig && ctxConfig.framework === framework && ctxConfig.language === language);
+
+      if (shouldPatch) {
+        const newCfg = {
+          ...(ctxConfig || {}),
+          framework,
+          language,
+        };
+        setTestRunConfig(newCfg);
+      }
+    } catch (err) {
+      // swallow to avoid breaking rendering
+      // eslint-disable-next-line no-console
+      console.warn("setTestRunConfig failed:", err);
+    }
+    // we intentionally include ctxConfig and setTestRunConfig in deps to be safe
+  }, [framework, language, ctxConfig, setTestRunConfig, initialFramework, initialLanguage]);
+
+
   useEffect(() => {
     const m: Record<number, boolean> = {};
     for (let i = 0; i < testCases.length; i++) m[i] = true;
@@ -154,36 +174,18 @@ export default function TestCasesPage(): JSX.Element {
     return s.replace(/^\s*```[a-zA-Z0-9-]*\n?/, "").replace(/\n?```\s*$/, "");
   }
 
-  async function copyToClipboard(text: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      alert("Copied to clipboard");
-    } catch {
-      alert("Copy failed");
-    }
-  }
-
-  function downloadCode(filename: string, content: string) {
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }
-
-  // Generate code via backend then set in context and navigate to run page with codes
-  const handleGenerate = async (selectedCases: TestCase[]) => {
+  // generate tests on backend and navigate to run page with codes in state & context
+  const handleGenerateAndGo = async () => {
     setGenError(null);
-    setGeneratedCodes([]);
+    if (!isNextEnabled) return;
     if (!projectId) {
       setGenError("Project ID not found. Cannot generate tests.");
-      return null;
+      return;
     }
+
     setGenerating(true);
+
+    const selectedCases = testCases.filter((_, idx) => selectedMap[idx]);
 
     try {
       const payload = {
@@ -202,10 +204,9 @@ export default function TestCasesPage(): JSX.Element {
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        console.error("generate-tests failed:", data);
         setGenError(data?.message || data?.error || "Failed to generate tests");
         setGenerating(false);
-        return null;
+        return;
       }
 
       const codesArr: GeneratedCode[] = Array.isArray(data?.codes) ? data.codes : [];
@@ -230,75 +231,20 @@ export default function TestCasesPage(): JSX.Element {
         } catch {}
       }
 
-      setGeneratedCodes(normalized);
-      setGenerating(false);
-      return normalized;
+      // navigate to run page with generated codes in state
+      navigate(`/project/${projectId}/run`, {
+        state: { framework, language, testCases: selectedCases, codes: normalized },
+      });
     } catch (err: any) {
-      console.error("generate-tests error:", err);
       setGenError(String(err?.message || err) || "Unexpected error generating tests");
+    } finally {
       setGenerating(false);
-      return null;
     }
   };
 
-  // NEXT button behavior:
-  // - If codes already exist in context or on page, navigate immediately to run page.
-  // - Otherwise generate then navigate.
-  const handleNext = async () => {
-    if (!isNextEnabled) return;
-
-    const selectedCases = testCases.filter((_, idx) => selectedMap[idx]);
-
-    // prefer codes from context if present
-    const ctxCodes: GeneratedCode[] | undefined = ctxConfig && Array.isArray((ctxConfig as any).codes) ? (ctxConfig as any).codes : undefined;
-
-    if (ctxCodes && ctxCodes.length > 0) {
-      // make sure context includes latest framework/language/testCases
-      if (typeof setTestRunConfig === "function") {
-        try {
-          setTestRunConfig({
-            ...(ctxConfig || {}),
-            framework,
-            language,
-            testCases: selectedCases,
-            codes: ctxCodes,
-          });
-        } catch {}
-      }
-
-      // navigate to run page with codes
-      navigate(`/project/${projectId}/run`, {
-        state: { framework, language, testCases: selectedCases, codes: ctxCodes },
-      });
-      return;
-    }
-
-    // if we've generated codes on this page already, use them
-    if (generatedCodes && generatedCodes.length > 0) {
-      if (typeof setTestRunConfig === "function") {
-        try {
-          setTestRunConfig({
-            ...(ctxConfig || {}),
-            framework,
-            language,
-            testCases: selectedCases,
-            codes: generatedCodes,
-          });
-        } catch {}
-      }
-      navigate(`/project/${projectId}/run`, {
-        state: { framework, language, testCases: selectedCases, codes: generatedCodes },
-      });
-      return;
-    }
-
-    // otherwise generate then navigate
-    const newCodes = await handleGenerate(selectedCases);
-    if (newCodes && newCodes.length > 0) {
-      navigate(`/project/${projectId}/run`, {
-        state: { framework, language, testCases: selectedCases, codes: newCodes },
-      });
-    }
+  // handleNext simply triggers generation + navigation
+  const handleNext = () => {
+    handleGenerateAndGo();
   };
 
   const handleBack = () => navigate(-1);
@@ -334,8 +280,12 @@ export default function TestCasesPage(): JSX.Element {
 
       {/* Controls */}
       <div className="controls-row" style={{ alignItems: "center" }}>
-        <button className="scenario-btn disabled-btn" disabled>＋ New Scenario</button>
-        <button className="scenario-btn disabled-btn" disabled>Bulk Actions</button>
+        <button className="scenario-btn disabled-btn" disabled>
+          ＋ New Scenario
+        </button>
+        <button className="scenario-btn disabled-btn" disabled>
+          Bulk Actions
+        </button>
 
         <div style={{ marginLeft: "auto", display: "flex", gap: 12, alignItems: "center" }}>
           <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -345,7 +295,11 @@ export default function TestCasesPage(): JSX.Element {
               onChange={(e) => setFramework(e.target.value)}
               style={{ padding: "10px 12px", minWidth: 180, borderRadius: 8, fontSize: 14 }}
             >
-              {FRAMEWORK_OPTIONS.map((f) => (<option key={f} value={f}>{f}</option>))}
+              {FRAMEWORK_OPTIONS.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
             </select>
           </label>
 
@@ -356,12 +310,20 @@ export default function TestCasesPage(): JSX.Element {
               onChange={(e) => setLanguage(e.target.value)}
               style={{ padding: "10px 12px", minWidth: 160, borderRadius: 8, fontSize: 14 }}
             >
-              {LANGUAGE_OPTIONS.map((l) => (<option key={l} value={l}>{l}</option>))}
+              {LANGUAGE_OPTIONS.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
             </select>
           </label>
 
           <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <input type="checkbox" checked={selectAllChecked} onChange={(e) => handleToggleSelectAllCheckbox(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={selectAllChecked}
+              onChange={(e) => handleToggleSelectAllCheckbox(e.target.checked)}
+            />
             <span style={{ fontSize: 13 }}>Select all</span>
           </label>
 
@@ -403,10 +365,14 @@ export default function TestCasesPage(): JSX.Element {
                   <pre style={{ whiteSpace: "pre-wrap", padding: 12, background: "#f7f7f7" }}>{raw}</pre>
                 </details>
               ) : (
-                <p style={{ color: "#666" }}>The backend did not return structured test cases. Try regenerating or check server logs.</p>
+                <p style={{ color: "#666" }}>
+                  The backend did not return structured test cases. Try regenerating or check server logs.
+                </p>
               )}
               <div style={{ marginTop: 12 }}>
-                <button className="btn" onClick={handleBack}>Back and retry</button>
+                <button className="btn" onClick={handleBack}>
+                  Back and retry
+                </button>
               </div>
             </div>
           ) : (
@@ -414,11 +380,18 @@ export default function TestCasesPage(): JSX.Element {
               <article key={idx} className="tile-card" style={{ position: "relative" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
                   <label style={{ marginTop: 4 }}>
-                    <input type="checkbox" checked={!!selectedMap[idx]} onChange={() => toggleSelect(idx)} style={{ width: 16, height: 16 }} />
+                    <input
+                      type="checkbox"
+                      checked={!!selectedMap[idx]}
+                      onChange={() => toggleSelect(idx)}
+                      style={{ width: 16, height: 16 }}
+                    />
                   </label>
 
                   <div style={{ flex: 1 }}>
-                    <h3 className="tile-title" style={{ marginTop: 0, marginBottom: 6 }}>{idx + 1}. {tc.title || `Test Case ${idx + 1}`}</h3>
+                    <h3 className="tile-title" style={{ marginTop: 0, marginBottom: 6 }}>
+                      {idx + 1}. {tc.title || `Test Case ${idx + 1}`}
+                    </h3>
 
                     {tc.type ? <div style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>{tc.type}</div> : null}
 
@@ -426,7 +399,11 @@ export default function TestCasesPage(): JSX.Element {
                       <div style={{ marginBottom: 6 }}>
                         <strong>Preconditions:</strong>
                         <ul style={{ marginTop: 6 }}>
-                          {tc.preconditions.map((p: string, i: number) => (<li key={i} style={{ fontSize: 13 }}>{p}</li>))}
+                          {tc.preconditions.map((p: string, i: number) => (
+                            <li key={i} style={{ fontSize: 13 }}>
+                              {p}
+                            </li>
+                          ))}
                         </ul>
                       </div>
                     )}
@@ -434,7 +411,9 @@ export default function TestCasesPage(): JSX.Element {
                     {tc.steps && tc.steps.length > 0 && (
                       <div style={{ marginBottom: 8 }}>
                         <ol className="tile-steps">
-                          {tc.steps.map((s: string, i: number) => (<li key={i}>{s}</li>))}
+                          {tc.steps.map((s: string, i: number) => (
+                            <li key={i}>{s}</li>
+                          ))}
                         </ol>
                       </div>
                     )}
@@ -452,40 +431,8 @@ export default function TestCasesPage(): JSX.Element {
         </div>
       </div>
 
-      {/* Fallback generatedCodes UI (kept) */}
-      {generatedCodes.length > 0 && (
-        <div style={{ marginTop: 20, padding: 12 }}>
-          <h3>Generated Code (preview)</h3>
-          {genError && <div style={{ color: "crimson", marginBottom: 8 }}>{genError}</div>}
-          {generatedCodes.map((g, i) => (
-            <div key={i} style={{ marginBottom: 18, border: "1px solid #e6e6e6", borderRadius: 8, overflow: "hidden" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: "#fafafa", borderBottom: "1px solid #eee" }}>
-                <div style={{ fontWeight: 600 }}>{g.title || `Scenario ${i + 1}`}</div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button className="btn" onClick={() => copyToClipboard(String(g.code ?? ""))}>Copy</button>
-                  <button
-                    className="btn"
-                    onClick={() => {
-                      const fnameBase = (g.title || `scenario-${i + 1}`).replace(/\s+/g, "-").toLowerCase();
-                      const extMap: Record<string,string> = { Java: "java", TypeScript: "ts", JavaScript: "js", Python: "py", "C#": "cs" };
-                      const ext = extMap[language] || "txt";
-                      downloadCode(`${fnameBase}.${ext}`, String(g.code ?? ""));
-                    }}
-                  >
-                    Download
-                  </button>
-                </div>
-              </div>
-
-              <pre style={{ whiteSpace: "pre-wrap", padding: 12, margin: 0, background: "#fff" }}>
-                {g.error ? <span style={{ color: "crimson" }}>Error: {g.error}</span> : (g.code || "No code returned")}
-              </pre>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {genError && !generatedCodes.length && (
+      {/* generation error */}
+      {genError && (
         <div style={{ marginTop: 12, padding: 12 }}>
           <div style={{ color: "crimson" }}>{genError}</div>
         </div>

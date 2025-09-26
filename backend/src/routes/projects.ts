@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Router } from "express";
 import multer from "multer";
 import OpenAI from "openai";
@@ -267,7 +268,9 @@ projectsRouter.delete("/:id", async (req, res, next) => {
  */
 projectsRouter.post("/:id/regenerate", upload.single("file"), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ ok: false, message: "file is required" });
+    if (!req.file) {
+      return res.status(400).json({ ok: false, message: "file is required" });
+    }
     console.log("📂 Regenerate triggered with file:", req.file.originalname, "mimetype:", req.file.mimetype);
 
     // ---- Extraction helper ----
@@ -282,12 +285,10 @@ projectsRouter.post("/:id/regenerate", upload.single("file"), async (req, res) =
       } catch (err: any) {
         console.warn("⚠️ pdf-parse-fixed failed:", err?.message || err);
       }
-      // fallback: salvage
+      // fallback
       const raw = buffer.toString("utf8");
       const cleaned = raw.replace(/[^\x09\x0A\x0D\x20-\x7E]+/g, " ");
-      const truncated = cleaned.slice(0, 200000);
-      console.log("📄 extracted via buffer-salvage, length:", truncated.length);
-      return truncated;
+      return cleaned.slice(0, 200000);
     }
 
     // ---- Extract content ----
@@ -309,7 +310,7 @@ projectsRouter.post("/:id/regenerate", upload.single("file"), async (req, res) =
 
     console.log("📄 Extracted content length:", content.length);
 
-    // ---- Find candidate processes ----
+    // ---- Candidate processes from Mongo ----
     const id = req.params.id;
     let processes: any[] = await BusinessProcess.find({
       $or: [{ projectId: id }, { applicationId: id }, { processId: id }],
@@ -324,7 +325,7 @@ projectsRouter.post("/:id/regenerate", upload.single("file"), async (req, res) =
       return res.json({ ok: true, matchedCount: 0, items: [], note: "No business processes found" });
     }
 
-    // ---- Local fallback scorer ----
+    // ---- Local scorer ----
     const tokenize = (text: string) =>
       Array.from(
         new Set(
@@ -335,7 +336,9 @@ projectsRouter.post("/:id/regenerate", upload.single("file"), async (req, res) =
             .filter((w) => w.length > 2)
         )
       );
+
     const docTokens = tokenize(content);
+
     function scoreOverlap(bpText: string) {
       const bpTokens = tokenize(bpText);
       let common = 0;
@@ -395,19 +398,16 @@ ${bpListStr}
       }
     }
 
-    // ---- Build final full relevance list ----
-    // Compute score for every process
+    // ---- Combine with local scores ----
     const scoredAll = processes.map((bp) => {
       const text = `${bp.name} ${bp.description || ""}`;
       return { bp, score: scoreOverlap(text) };
     });
 
-    // Map model-returned items (if any) to DB processes and mark them
     const aiIds = new Set<string>();
     const mappedAiItems: any[] = [];
     if (parsed && Array.isArray(items)) {
       for (const it of items) {
-        // try to match by _id first, then by name
         let p = processes.find((bp) => String(bp._id) === String(it._id));
         if (!p && it.name) {
           p = processes.find((bp) => (bp.name || "").toLowerCase() === String(it.name).toLowerCase());
@@ -424,15 +424,13 @@ ${bpListStr}
             _filledFrom: "openai",
           });
         } else {
-          // keep the raw item if it didn't map (so user can inspect)
           mappedAiItems.push({ ...it, _filledFrom: "openai_unmapped" });
         }
       }
     }
 
-    // Add remaining processes that have positive score (or zero if you want everything)
     const remaining = scoredAll
-      .filter((s) => !aiIds.has(String(s.bp._id)) && s.score > 0) // include positive scored ones
+      .filter((s) => !aiIds.has(String(s.bp._id)) && s.score > 0)
       .map((s) => ({
         _id: String(s.bp._id),
         name: s.bp.name,
@@ -442,7 +440,6 @@ ${bpListStr}
         _filledFrom: "local_score",
       }));
 
-    // Combine mapped AI items first, then remaining, and sort by _score desc
     const finalItems = [...mappedAiItems, ...remaining].sort((a: any, b: any) => {
       const sa = typeof a._score === "number" ? a._score : 0;
       const sb = typeof b._score === "number" ? b._score : 0;
@@ -451,13 +448,151 @@ ${bpListStr}
 
     const branch = parsed ? "openai_plus_local" : "local_only";
 
+    // === Persist matched results into Mongo ===
+try {
+  // cast project id to ObjectId
+  const projObjId = mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
+
+  // clear previous matched documents for this project
+  await BusinessProcess.updateMany(
+    { projectId: projObjId, matched: true },
+    { $set: { matched: false } } // keep history but unmark old ones (safer than deleteMany)
+  );
+
+  if (finalItems.length > 0) {
+    // Upsert each final item to preserve other fields if needed (avoid duplicates)
+    const bulkOps = finalItems.map((bp) => {
+      return {
+        updateOne: {
+          filter: { projectId: projObjId, name: bp.name }, // match by project + name (adjust if you prefer _id)
+          update: {
+            $set: {
+              projectId: projObjId,
+              name: bp.name,
+              description: bp.description || "",
+              priority: bp.priority || "Medium",
+              matched: true,
+              score: typeof bp._score === "number" ? bp._score : 0,
+              source: bp._filledFrom || "openai_local",
+              updatedAt: new Date(),
+            },
+            $setOnInsert: { createdAt: new Date() },
+          },
+          upsert: true,
+        },
+      };
+    });
+
+    if (bulkOps.length > 0) {
+      await BusinessProcess.bulkWrite(bulkOps);
+    }
+  }
+} catch (persistErr: any) {
+  console.error("❌ Failed to persist matched processes:", persistErr);
+}
+
+
     console.log(`✅ Branch used: ${branch}, count: ${finalItems.length}`);
-    return res.json({ ok: true, branch, matchedCount: finalItems.length, items: finalItems, raw: aiText });
+    return res.json({ ok: true, branch, matchedCount: finalItems.length });
   } catch (e: any) {
     console.error("❌ Regenerate failed:", e);
     return res.status(500).json({ ok: false, message: "Regenerate failed", error: String(e.message || e) });
   }
 });
+
+/**
+ * POST /projects/:id/generate-bp
+ * Uploads a file, asks OpenAI to generate business processes, saves them to Mongo, returns them.
+ */
+projectsRouter.post("/:id/generate-bp", upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ ok: false, message: "file is required" });
+
+    const projectId = req.params.id;
+
+    // ---- Extract text from file ----
+    let content = "";
+    const name = req.file.originalname || "";
+    const mimetype = req.file.mimetype || "";
+    if (mimetype === "application/pdf" || name.toLowerCase().endsWith(".pdf")) {
+      const { default: pdfParse } = await import("pdf-parse-fixed");
+      const pdf = await pdfParse(req.file.buffer);
+      content = pdf.text || "";
+    } else if (
+      mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      name.toLowerCase().endsWith(".docx")
+    ) {
+      const result = await mammoth.extractRawText({ buffer: req.file.buffer });
+      content = result?.value || "";
+    } else {
+      content = req.file.buffer.toString("utf8");
+    }
+
+    // ---- Build prompt ----
+    const docSnippet = content.length > 8000 ? content.slice(0, 8000) : content;
+    const prompt = `
+You are a business analyst. From the following document, extract 5–10 **Business Processes**.
+Return only valid JSON array. Each object must have:
+{ "name": string, "description": string, "priority": "Critical" | "High" | "Medium" | "Low" }
+
+Document:
+"""${docSnippet}"""
+`;
+
+    // ---- Call OpenAI ----
+    let aiText = "";
+try {
+  const response = await client.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0,
+    max_tokens: 1500,
+  });
+  aiText = response.choices?.[0]?.message?.content || "";
+  console.log("🔹 Raw OpenAI output:", aiText.slice(0, 200));
+} catch (err: any) {
+  console.error("❌ OpenAI call failed:", err);
+  return res.status(502).json({ ok: false, message: "OpenAI call failed", error: String(err.message || err) });
+}
+
+    // ---- Parse JSON ----
+let items: any[] = [];
+let parsed = false;
+
+if (aiText) {
+  try {
+    // strip ```json ... ``` fences if present
+    const fenceMatch = aiText.match(/```json([\s\S]*?)```/i);
+    const jsonText = fenceMatch ? fenceMatch[1].trim() : aiText.trim();
+
+    items = JSON.parse(jsonText || "[]");
+    parsed = true;
+  } catch (err) {
+    console.warn("⚠️ JSON parse failed:", err);
+    items = [];
+  }
+}
+
+    // ---- Save to Mongo ----
+    await BusinessProcess.deleteMany({ projectId, matched: true });
+    const docsToInsert = items.map((bp) => ({
+      projectId,
+      name: bp.name || "Untitled",
+      description: bp.description || "",
+      priority: bp.priority || "Medium",
+      matched: true,
+      createdAt: new Date(),
+    }));
+    const inserted = await BusinessProcess.insertMany(docsToInsert);
+
+    return res.json({ ok: true, count: inserted.length, items: inserted });
+  } catch (err: any) {
+    console.error("generate-bp failed:", err);
+    return res.status(500).json({ ok: false, message: "generate-bp failed", error: String(err.message || err) });
+  }
+});
+
+
 
 
 //
@@ -959,6 +1094,26 @@ projectsRouter.post("/:id/run", async (req, res) => {
   } catch (err: any) {
     console.error("run-tests failed:", err);
     return res.status(500).json({ ok: false, message: "run-tests failed", error: String(err.message || err) });
+  }
+});
+/**
+ * GET /projects/:id/matched-processes
+ */
+projectsRouter.get("/:id/matched-processes", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const items = await BusinessProcess.find({ projectId: id, matched: true })
+      .sort({ score: -1 })
+      .lean();
+
+    return res.json({ items });
+  } catch (err: any) {
+    console.error("❌ get matched-processes error:", err);
+    return res.status(500).json({
+      ok: false,
+      message: "Failed to load matched processes",
+      error: String(err?.message || err),
+    });
   }
 });
 

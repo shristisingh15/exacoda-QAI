@@ -37,6 +37,8 @@ export default function TestScenariosPage(): JSX.Element {
 
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [showPrev, setShowPrev] = useState<boolean>(false);
+const [generating, setGenerating] = useState<boolean>(false);
+
 
   // fetch project meta
   useEffect(() => {
@@ -124,14 +126,17 @@ export default function TestScenariosPage(): JSX.Element {
 
   // Next button → send selected scenarios to backend & navigate
   const handleNext = async () => {
-    if (!id) return;
-    const chosen = scenarios.filter((s) => selected[s._id!]);
+  if (!id) return;
+  if (generating) return; // prevent double-clicks
 
-    if (chosen.length === 0) {
-      alert("Please select at least one test scenario.");
-      return;
-    }
+  const chosen = scenarios.filter((s) => selected[s._id!]);
 
+  if (chosen.length === 0) {
+    alert("Please select at least one test scenario.");
+    return;
+  }
+
+  setGenerating(true);
     try {
       const res = await fetch(`${API_BASE}/api/projects/${id}/generate-tests`, {
         method: "POST",
@@ -149,6 +154,7 @@ export default function TestScenariosPage(): JSX.Element {
       if (!res.ok) {
         console.error("Generate-tests failed:", data);
         alert(data?.message || data?.error || "Failed to generate tests");
+        setGenerating(false);
         return;
       }
 
@@ -178,6 +184,7 @@ export default function TestScenariosPage(): JSX.Element {
     } catch (err: any) {
       console.error("handleNext error:", err);
       alert("Unexpected error generating test cases.");
+       setGenerating(false);
     }
   };
 
@@ -274,18 +281,19 @@ export default function TestScenariosPage(): JSX.Element {
 
           <div style={{ marginLeft: 12 }}>
   <button
-    className="btn btn-primary"
-    disabled={!anySelected}
-    onClick={() => {
-      if (!anySelected) {
-        alert("Please select at least one test scenario.");
-        return;
-      }
-      handleNext();
-    }}
-  >
-    Next →
-  </button>
+  className="btn btn-primary"
+  disabled={!anySelected || generating}
+  onClick={() => {
+    if (!anySelected) {
+      alert("Please select at least one test scenario.");
+      return;
+    }
+    handleNext();
+  }}
+>
+  {generating ? "Generating…" : "Next →"}
+</button>
+
 </div>
 
         </div>

@@ -1,3 +1,4 @@
+// backend/src/model/businessprocess.ts
 import mongoose from "mongoose";
 
 const bpSchema = new mongoose.Schema(
@@ -6,13 +7,20 @@ const bpSchema = new mongoose.Schema(
     description: { type: String },
     priority: {
       type: String,
-      enum: ["Critical", "High", "Medium", "Low"], // 🔹 allowed values
-      default: "Medium",                           // 🔹 default if not provided
+      enum: ["Critical", "High", "Medium", "Low"],
+      default: "Medium",
     },
-    createdAt: { type: Date, default: Date.now },
-    projectId: { type: mongoose.Schema.Types.ObjectId, ref: "Project" }, // 🔹 optional: link BP to a project
+    projectId: { type: mongoose.Schema.Types.ObjectId, ref: "Project" },
+
+    // NEW fields for regenerate/matching
+    matched: { type: Boolean, default: false, index: true },
+    score: { type: Number, default: 0 }, // normalized score (0..1)
+    source: { type: String, default: "manual" }, // e.g. "openai", "local_score"
   },
-  { timestamps: false }
+  {
+    timestamps: true, // createdAt & updatedAt will be managed automatically
+    strict: true,
+  }
 );
 
 export type BusinessProcessDoc = mongoose.InferSchemaType<typeof bpSchema>;

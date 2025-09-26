@@ -1,118 +1,123 @@
-// frontend/src/pages/UploadDocuments.tsx
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 
-const API_BASE = (import.meta.env.VITE_API_BASE as string) || "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5001";
 
-type Props = {
-  setStep: (n: number) => void;
-  projectId?: string;
+type ProjectFile = {
+  _id: string;
+  filename: string;
+  version: string;
+  uploadedAt: string;
 };
 
-export default function UploadDocuments({ setStep, projectId }: Props) {
-  const [fileName, setFileName] = useState<string>("");
-  const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export default function UploadDocument() {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const handleFile = async (file: File) => {
-    if (!file) return;
-    setProcessing(true);
-    setError(null);
+  const [files, setFiles] = useState<ProjectFile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-
-      const url = projectId
-        ? `${API_BASE}/api/projects/${encodeURIComponent(projectId)}/regenerate`
-        : `${API_BASE}/api/regenerate`;
-
-      const res = await fetch(url, { method: "POST", body: fd });
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        throw new Error(`HTTP ${res.status} ${txt}`);
-      }
-      const data = await res.json();
-
-      // Find first array result (be defensive about response shape)
-      let matched: any[] = [];
-      if (Array.isArray(data?.items)) matched = data.items;
-      else if (Array.isArray(data?.relevantBusinessProcesses)) matched = data.relevantBusinessProcesses;
-      else if (Array.isArray(data?.relevant)) matched = data.relevant;
-      else {
-        // fallback: take first array-valued property
-        for (const k of Object.keys(data || {})) {
-          if (Array.isArray((data as any)[k])) {
-            matched = (data as any)[k];
-            break;
-          }
-        }
-      }
-
-      // Persist to storage
-      const serialized = JSON.stringify(matched || []);
-      sessionStorage.setItem("relevantBusinessProcesses", serialized);
-      localStorage.setItem("relevantBusinessProcesses", serialized);
-      sessionStorage.setItem("uploadedDocument", JSON.stringify({ filename: file.name, savedAt: new Date().toISOString(), raw: data }));
-      localStorage.setItem("uploadedDocument", JSON.stringify({ filename: file.name, savedAt: new Date().toISOString(), raw: data }));
-
-      // Dispatch a same-tab event so FlowAnalysis updates immediately
+  // fetch uploaded file history
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
       try {
-        window.dispatchEvent(new CustomEvent("relevantBPUpdated", { detail: { relevant: matched, filename: file.name } }));
-      } catch (e) {
-        console.warn("Failed to dispatch custom event", e);
+        setLoading(true);
+        const res = await fetch(`${API_BASE}/api/projects/${id}/files`);
+        if (!res.ok) throw new Error(`Failed to load files: ${res.status}`);
+        const data = await res.json();
+        setFiles(data);
+      } catch (err: any) {
+        console.error("❌ Load files failed:", err);
+        setError(err?.message || "Failed to load history");
+      } finally {
+        setLoading(false);
       }
+    })();
+  }, [id]);
 
-      // move to step 2 and navigate to analysis page (HashRouter-safe)
-      setStep(2);
-      try {
-        navigate(`/project/${projectId || ""}/analysis`, { state: { relevant: matched } });
-      } catch (e) {
-        console.warn("navigate() failed, falling back to hash navigation", e);
-      }
-      // fallback for HashRouter
-      await new Promise((r) => setTimeout(r, 120));
-      window.location.href = `#/project/${projectId || ""}/analysis`;
-    } catch (err: any) {
-      console.error("Upload/process error:", err);
-      setError(err?.message || "Processing failed");
-      alert("Processing failed — check console and network tab.");
-    } finally {
-      setProcessing(false);
+  // handle Choose File -> works like regenerate
+  // handle Choose File (new: generate business processes)
+const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  setError(null);
+  const file = e.target.files?.[0];
+  if (!file || !id) return;
+
+  setUploading(true);
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch(`${API_BASE}/api/projects/${id}/generate-bp`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`Upload failed: ${txt || res.status}`);
     }
-  };
+    const json = await res.json();
+    console.log("generate-bp returned:", json);
 
-  const onChooseFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setFileName(f.name);
-    handleFile(f);
-    // clear input afterwards
-    e.currentTarget.value = "";
-  };
+    // redirect to flow analysis (it will fetch from Mongo)
+    navigate(`/project/${id}/analysis`);
+  } catch (err: any) {
+    console.error("generate-bp failed:", err);
+    setError(err?.message || "Upload failed");
+  } finally {
+    setUploading(false);
+  }
+};
+
 
   return (
-    <div style={{ maxWidth: 920, margin: "0 auto" }}>
-      <h3>Upload Documents</h3>
-      <p>Accepted: PDF, DOCX, DOC, TXT</p>
+    <div className="project-page">
+      <div className="project-header">
+        <h2>Upload Document</h2>
+        <p className="muted">Upload a document to analyze against business processes.</p>
+      </div>
 
-      <div style={{ background: "#fff", padding: 20, borderRadius: 10 }}>
-        <label htmlFor="uploadFile" style={{ display: "inline-block", padding: "10px 16px", background: "#22c55e", color: "#fff", borderRadius: 8, cursor: "pointer" }}>
-          📂 Choose File
-        </label>
-        <input id="uploadFile" type="file" accept=".pdf,.doc,.docx,.txt" onChange={onChooseFile} style={{ display: "none" }} disabled={processing} />
-        <div style={{ display: "inline-block", marginLeft: 12 }}>
-          {fileName ? <strong>{fileName}</strong> : <span style={{ color: "#6b7280" }}>No file chosen</span>}
-        </div>
+      {/* Upload card */}
+      <div className="upload-card">
+        <button
+          className="btn btn-primary"
+          disabled={uploading}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          {uploading ? "Processing…" : "Choose File"}
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: "none" }}
+          accept=".pdf,.doc,.docx,.txt"
+          onChange={handleFileChange}
+        />
+      </div>
 
-        <div style={{ marginTop: 12 }}>
-          <button onClick={() => { if (fileName === "") alert("Choose a file first"); else alert("File already processing or processed"); }} disabled={processing} style={{ padding: "8px 12px", borderRadius: 6 }}>
-            {processing ? "Processing…" : "Choose & Compare"}
-          </button>
-        </div>
+      {/* Error */}
+      {error && <p style={{ color: "crimson" }}>{error}</p>}
 
-        {error && <div style={{ color: "crimson", marginTop: 8 }}>{error}</div>}
+      {/* History section */}
+      <div className="history-section">
+        <h3>History</h3>
+        {loading ? (
+          <p>Loading…</p>
+        ) : files.length === 0 ? (
+          <p>No documents uploaded yet.</p>
+        ) : (
+          <ul>
+            {files.map((f) => (
+              <li key={f._id}>
+                <strong>{f.filename}</strong> ({f.version}) –{" "}
+                {new Date(f.uploadedAt).toLocaleString()}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
