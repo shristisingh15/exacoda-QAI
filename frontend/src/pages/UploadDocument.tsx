@@ -131,8 +131,6 @@ useEffect(() => {
     <div>Loading documents…</div>
   ) : docsErr ? (
     <div style={{ color: "crimson" }}>{docsErr}</div>
-  ) : documents.length === 0 ? (
-    <div style={{ color: "#374151", padding: 12 }}>No documents uploaded yet.</div>
   ) : (
     <table className="docs-table" style={{ width: "100%", borderCollapse: "collapse" }}>
       <thead>
@@ -143,16 +141,28 @@ useEffect(() => {
         </tr>
       </thead>
       <tbody>
-        {documents.map((d) => (
-          <tr key={d._id} style={{ borderBottom: "1px solid #f3f4f6" }}>
-            <td style={{ padding: "10px 12px" }}>
-              <div style={{ fontWeight: 600 }}>{d.name}</div>
-              {d.uploadedAt && <div style={{ fontSize: 12, color: "#6b7280" }}>{new Date(d.uploadedAt).toLocaleString()}</div>}
-            </td>
-            <td style={{ padding: "10px 12px" }}>{d.scenariosCount ?? 0}</td>
-            <td style={{ padding: "10px 12px" }}>{d.testCasesCount ?? 0}</td>
+        {documents.length === 0 ? (
+          <tr>
+            <td style={{ padding: "10px 12px", color: "#6b7280" }}>-</td>
+            <td style={{ padding: "10px 12px", color: "#6b7280" }}>-</td>
+            <td style={{ padding: "10px 12px", color: "#6b7280" }}>-</td>
           </tr>
-        ))}
+        ) : (
+          documents.map((d) => (
+            <tr key={d._id} style={{ borderBottom: "1px solid #f3f4f6" }}>
+              <td style={{ padding: "10px 12px" }}>
+                <div style={{ fontWeight: 600 }}>{d.name || "-"}</div>
+                {d.uploadedAt && (
+                  <div style={{ fontSize: 12, color: "#6b7280" }}>
+                    {new Date(d.uploadedAt).toLocaleString()}
+                  </div>
+                )}
+              </td>
+              <td style={{ padding: "10px 12px" }}>{d.scenariosCount ?? "-"}</td>
+              <td style={{ padding: "10px 12px" }}>{d.testCasesCount ?? "-"}</td>
+            </tr>
+          ))
+        )}
       </tbody>
     </table>
   )}
