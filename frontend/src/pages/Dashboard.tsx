@@ -1,8 +1,10 @@
+// src/pages/Dashboard.tsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Dashboard.css";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "https://exacoda-qai-q8up.onrender.com";
+const API_BASE =
+  import.meta.env.VITE_API_BASE || "http://localhost:5001";
 
 interface Project {
   _id?: string;
@@ -47,13 +49,21 @@ const Dashboard: React.FC = () => {
       if (query.trim()) params.set("q", query.trim());
       params.set("limit", "12");
 
-      const res = await fetch(`${API_BASE}/api/projects?${params.toString()}`, {
-        signal: ac.signal,
-      });
+      // 🔹 Changed endpoint here
+      const res = await fetch(
+        `${API_BASE}/dashboard/projects?${params.toString()}`,
+        { signal: ac.signal }
+      );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const json = await res.json(); // { items, total }
-      let items: Project[] = Array.isArray(json?.items) ? json.items : [];
+let items: Project[] = Array.isArray(json?.items) ? json.items : [];
+
+// 🔹 normalize projectName -> name
+items = items.map((p: any) => ({
+  ...p,
+  name: p.name || p.projectName || "Untitled Project",
+}));
 
       // client-side filter by type (optional)
       if (filterType !== "All Types") {
@@ -61,7 +71,8 @@ const Dashboard: React.FC = () => {
       }
       setProjects(items);
     } catch (e: any) {
-      if (e?.name !== "AbortError") setErr(e.message || "Failed to fetch projects");
+      if (e?.name !== "AbortError")
+        setErr(e.message || "Failed to fetch projects");
     } finally {
       clearTimeout(t);
       setLoading(false);
@@ -83,46 +94,47 @@ const Dashboard: React.FC = () => {
 
   // ------- form handlers -------
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
   ) => {
     setFormProject({ ...formProject, [e.target.name]: e.target.value });
   };
 
   // ------- create -------
- const handleAddProject = async () => {
-  if (!formProject.name || !formProject.description) {
-    alert("Name and Description are required.");
-    return;
-  }
-
-  const payload = {
-    name: formProject.name,
-    description: formProject.description,
-    type: formProject.type || "Web",
-    date: formProject.date,
-    step: formProject.step, // e.g., "25%"
-  };
-
-  try {
-    const res = await fetch(`${API_BASE}/api/projects`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`HTTP ${res.status} – ${text}`);
+  const handleAddProject = async () => {
+    if (!formProject.name || !formProject.description) {
+      alert("Name and Description are required.");
+      return;
     }
-    const created: Project = await res.json();
-    setProjects((prev) => [created, ...prev]);
-    window.dispatchEvent(new Event("projects:changed")); // notify sidebar
-    closeModal();
-  } catch (err: any) {
-    console.error(err);
-    alert(err?.message || "Error adding project");
-  }
-};
 
+    const payload = {
+      name: formProject.name,
+      description: formProject.description,
+      type: formProject.type || "Web",
+      date: formProject.date,
+      step: formProject.step, // e.g., "25%"
+    };
+
+    try {
+      const res = await fetch(`${API_BASE}/api/projects`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status} – ${text}`);
+      }
+      const created: Project = await res.json();
+      setProjects((prev) => [created, ...prev]);
+      window.dispatchEvent(new Event("projects:changed")); // notify sidebar
+      closeModal();
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Error adding project");
+    }
+  };
 
   // ------- update -------
   const handleUpdateProject = async () => {
@@ -144,7 +156,9 @@ const Dashboard: React.FC = () => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const updated: Project = await res.json();
 
-      setProjects((prev) => prev.map((p) => (p._id === updated._id ? updated : p)));
+      setProjects((prev) =>
+        prev.map((p) => (p._id === updated._id ? updated : p))
+      );
       window.dispatchEvent(new Event("projects:changed")); // 🔔 tell sidebar
       closeModal();
     } catch (error: any) {
@@ -154,9 +168,12 @@ const Dashboard: React.FC = () => {
 
   // ------- delete -------
   const handleDeleteProject = async (id: string) => {
-    if (!window.confirm("Are you sure you want to delete this project?")) return;
+    if (!window.confirm("Are you sure you want to delete this project?"))
+      return;
     try {
-      const res = await fetch(`${API_BASE}/api/projects/${id}`, { method: "DELETE" });
+      const res = await fetch(`${API_BASE}/api/projects/${id}`, {
+        method: "DELETE",
+      });
       if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
       setProjects((prev) => prev.filter((p) => p._id !== id));
       window.dispatchEvent(new Event("projects:changed")); // 🔔 tell sidebar
@@ -197,7 +214,6 @@ const Dashboard: React.FC = () => {
   return (
     <div className="dashboard">
       <div className="main-content">
-    
         {/* Page title */}
         <div className="page-header">
           <h2>Test Projects</h2>
@@ -241,7 +257,9 @@ const Dashboard: React.FC = () => {
               <div key={project._id} className="project-card">
                 <div
                   className="project-header"
-                  onClick={() => project._id && navigate(`/project/${project._id}`)}
+                  onClick={() =>
+                    project._id && navigate(`/project/${project._id}`)
+                  }
                 >
                   <h4>{project.name}</h4>
                   <p>{project.type || "Web"}</p>
@@ -252,9 +270,13 @@ const Dashboard: React.FC = () => {
                   <div className="step">Step {project.step || "—"}</div>
                 </div>
                 <div className="actions">
-                  <button onClick={() => openEditModal(project)}> Edit</button>
-                  <button onClick={() => project._id && handleDeleteProject(project._id)}>
-                     Delete
+                  <button onClick={() => openEditModal(project)}>Edit</button>
+                  <button
+                    onClick={() =>
+                      project._id && handleDeleteProject(project._id)
+                    }
+                  >
+                    Delete
                   </button>
                 </div>
               </div>
@@ -280,7 +302,11 @@ const Dashboard: React.FC = () => {
                 value={formProject.description}
                 onChange={handleChange}
               />
-              <select name="type" value={formProject.type} onChange={handleChange}>
+              <select
+                name="type"
+                value={formProject.type}
+                onChange={handleChange}
+              >
                 <option>Web</option>
                 <option>Mobile</option>
                 <option>UI-Testing</option>
@@ -294,11 +320,19 @@ const Dashboard: React.FC = () => {
                 onChange={handleChange}
               />
               {editingProject ? (
-                <button type="button" className="save-btn" onClick={handleUpdateProject}>
+                <button
+                  type="button"
+                  className="save-btn"
+                  onClick={handleUpdateProject}
+                >
                   Update
                 </button>
               ) : (
-                <button type="button" className="save-btn" onClick={handleAddProject}>
+                <button
+                  type="button"
+                  className="save-btn"
+                  onClick={handleAddProject}
+                >
                   Save
                 </button>
               )}
