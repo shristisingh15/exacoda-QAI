@@ -202,59 +202,84 @@ export default function FlowAnalysis() {
 
   // upload file -> ask server to generate bp (AI). If AI fails or produces nothing,
   // we will reload matched and fallback to project/all from Mongo.
-  const handleFileUpload = async (file: File) => {
-    if (!file || !id) return;
+  // Replace the existing handleFileUpload with this (no other changes)
+const handleFileUpload = async (file: File) => {
+  if (!file || !id) return;
 
-    setLoading(true);
-    setFallbackMessage(null);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
+  setLoading(true);
+  setFallbackMessage(null);
+  setErr(null);
 
-      const res = await fetch(`${API_BASE}/api/projects/${id}/generate-bp`, {
-        method: "POST",
-        body: formData,
-      });
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
 
-      if (!res.ok) {
-        throw new Error(`AI generation failed (HTTP ${res.status})`);
+    const res = await fetch(`${API_BASE}/api/projects/${id}/generate-bp`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) {
+      throw new Error(`AI generation failed (HTTP ${res.status})`);
+    }
+
+    const genJson = await res.json();
+
+    // Try common response shapes where generated BPs might be present.
+    const possibleArrays = [
+      genJson?.items,
+      genJson?.data,
+      genJson?.businessProcesses,
+      genJson?.bps,
+      genJson?.bp,
+      Array.isArray(genJson) ? genJson : null,
+    ];
+
+    let found: any[] | null = null;
+    for (const candidate of possibleArrays) {
+      if (Array.isArray(candidate) && candidate.length > 0) {
+        found = candidate;
+        break;
       }
+    }
 
-      const genJson = await res.json();
+    // If AI returned business processes, prefer them and map to the same BP shape
+    if (found && found.length > 0) {
+      const mappedGen = mapToBP(found);
+      setItems(mappedGen);
+      setSelectedIds({});
+      setFallbackMessage(null);
+      return;
+    }
 
-      // After attempting generation, always reload matched and fallback if empty.
+    // Otherwise fall back to loading from Mongo (matched -> project -> all)
+    const matched = await fetchFromMongoFallback(id);
+    setItems(matched);
+    setSelectedIds({});
+    if (matched.length === 0) {
+      setFallbackMessage(
+        "Business Processes"
+      );
+    }
+  } catch (err: any) {
+    // On error, still attempt the fallback chain so user sees something if possible
+    try {
       const matched = await fetchFromMongoFallback(id);
       setItems(matched);
       setSelectedIds({});
-      if (matched.length === 0) {
-        setFallbackMessage("AI did not generate any business processes and no fallback records were found in Mongo.");
+      if (matched.length > 0) {
+        setFallbackMessage("AI generation failed — showing existing business processes from Mongo.");
       } else {
-        // Prefer generated items if present in response
-        if (Array.isArray(genJson?.items) && genJson.items.length > 0) {
-          const mappedGen = mapToBP(genJson.items);
-          setItems(mappedGen);
-          setSelectedIds({});
-          setFallbackMessage(null);
-        }
+        setErr(err?.message || "Failed to regenerate and no fallback items found in Mongo.");
       }
-    } catch (err: any) {
-      // Try fallback even in error case
-      try {
-        const matched = await fetchFromMongoFallback(id);
-        setItems(matched);
-        setSelectedIds({});
-        if (matched.length > 0) {
-          setFallbackMessage("AI generation failed — showing existing business processes from Mongo.");
-        } else {
-          setErr(err?.message || "Failed to regenerate and no fallback items found in Mongo.");
-        }
-      } catch (e: any) {
-        setErr(e?.message || "Failed to regenerate");
-      }
-    } finally {
-      setLoading(false);
+    } catch (e: any) {
+      setErr(e?.message || "Failed to regenerate");
     }
-  };
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="project-page flow-analysis">
