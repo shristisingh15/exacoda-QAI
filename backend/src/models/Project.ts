@@ -16,5 +16,5 @@ export type ProjectDoc = mongoose.InferSchemaType<typeof projectSchema>;
 export const Project = mongoose.model<ProjectDoc>(
   "Project",    // model name
   projectSchema,
-  "projects_1"    // collection name
+  "projects"    // collection name
 );
