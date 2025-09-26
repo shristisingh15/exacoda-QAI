@@ -1,4 +1,4 @@
-// src/server.ts
+// backend/src/server.ts
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
@@ -12,48 +12,45 @@ import generateTestsRouter from "./routes/generateTestCases.js";
 
 const app = express();
 
-// ------------------- CORS (env-driven) -------------------
-// Read allowed frontend origins from env (comma-separated)
+// ─── Security & Basic Middleware ───────────────────────────────────────────────
+app.use(helmet());
+
+// Allowed frontend origins (from env or defaults)
 const FRONTEND_ORIGINS = (process.env.FRONTEND_ORIGINS || "")
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
+const defaultOrigins = ["http://localhost:5173", "http://localhost:5174"];
+const allowedOrigins = Array.from(new Set([...defaultOrigins, ...FRONTEND_ORIGINS, "https://exacodaqai-xdtb.onrender.com"]));
 
-// Default dev origins
-const defaultOrigins = [
-  "http://localhost:5173",
-  "http://localhost:5174",
-];
-
-// Combine and dedupe
-const allowedOrigins = Array.from(new Set([...defaultOrigins, ...FRONTEND_ORIGINS]));
-
-// Debug log
-console.log("Allowed CORS origins:", allowedOrigins);
-
-// Use CORS with dynamic origin function that DOES NOT throw
+// Main CORS middleware
 app.use(
   cors({
     origin: (origin, callback) => {
-      // allow server-side tools (curl) — no origin
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      // not allowed -> don't throw an error, just deny
-      console.warn(`CORS: rejecting origin ${origin}`);
-      return callback(null, false);
+      if (!origin) return callback(null, true); // allow server-to-server or curl
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error("Not allowed by CORS"), false);
     },
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
   })
 );
 
-// ------------------- Other middleware -------------------
-app.use(helmet());
+// 🔹 Extra middleware to guarantee CORS headers (safety net)
+app.use((req, res, next) => {
+  const origin = (req.headers.origin as string) || "";
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
+  }
+  if (req.method === "OPTIONS") return res.status(204).end();
+  return next();
+});
+
 app.use(express.json());
 
-// Routes
+// ─── Routes ────────────────────────────────────────────────────────────────────
 app.use("/debug", debugRouter);
 app.use("/api/business", businessRouter);
 app.use("/api/projects", projectsRouter);
@@ -63,12 +60,17 @@ app.use(generateTestsRouter);
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
-// Start server
+// ─── Startup ───────────────────────────────────────────────────────────────────
 (async () => {
   try {
     await connectDB();
+
     const PORT = Number(process.env.PORT || 5004);
-    console.log("🔑 OpenAI key prefix:", process.env.OPENAI_API_KEY?.slice(0, 8) ?? "(none)");
+
+    console.log("✅ MongoDB connected");
+    console.log("🔑 OpenAI key prefix:", process.env.OPENAI_API_KEY?.slice(0, 8));
+    console.log("🌍 Allowed CORS origins:", allowedOrigins);
+
     app.listen(PORT, () => {
       console.log(`🚀 API listening on :${PORT}`);
     });
