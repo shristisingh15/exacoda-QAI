@@ -37,8 +37,9 @@ export default function FlowAnalysis() {
 
   const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
   const [generating, setGenerating] = useState(false);
+  const [fallbackMessage, setFallbackMessage] = useState<string | null>(null);
 
-  // ✅ map API data → UI BP
+  // map API data → UI BP
   const mapToBP = (arr: any[]) =>
     arr.map((p: any, idx: number) => ({
       _id: p._id || p.id || `bp-${idx}`,
@@ -48,7 +49,39 @@ export default function FlowAnalysis() {
       ...p,
     }));
 
-  // ✅ fetch project details
+  // Try a series of mongo endpoints to fallback to if matched is empty
+  const fetchFromMongoFallback = async (projectId: string) => {
+    const tryEndpoints = [
+      `${API_BASE}/api/business/matched/${projectId}`, // matched (primary)
+      `${API_BASE}/api/business/project/${projectId}`, // project-level (fallback)
+      `${API_BASE}/api/business`, // all BPs (last resort)
+    ];
+
+    for (let i = 0; i < tryEndpoints.length; i++) {
+      try {
+        const res = await fetch(tryEndpoints[i]);
+        if (!res.ok) continue;
+        const json = await res.json();
+        const arr = json?.items || json?.data || json || [];
+        if (Array.isArray(arr) && arr.length > 0) {
+          setFallbackMessage(
+            i === 0
+              ? null
+              : `AI did not return processes — showing fallback from Mongo (source: ${new URL(
+                  tryEndpoints[i]
+                ).pathname}).`
+          );
+          return mapToBP(arr);
+        }
+      } catch (e) {
+        // ignore and continue
+        continue;
+      }
+    }
+    return [];
+  };
+
+  // fetch project details
   useEffect(() => {
     if (!id) return;
     const ac = new AbortController();
@@ -69,7 +102,7 @@ export default function FlowAnalysis() {
     return () => ac.abort();
   }, [id]);
 
-  // ✅ fetch matched business processes from Mongo
+  // fetch matched business processes from Mongo, with fallback
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
@@ -77,17 +110,45 @@ export default function FlowAnalysis() {
     (async () => {
       setLoading(true);
       setErr(null);
+      setFallbackMessage(null);
       try {
+        // Primary: try matched endpoint first
         const res = await fetch(`${API_BASE}/api/business/matched/${id}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
-        if (!cancelled && json?.items) {
-          const mapped = mapToBP(json.items);
+        const mapped = mapToBP(json.items || []);
+        if (!cancelled && mapped.length > 0) {
           setItems(mapped);
           setSelectedIds({});
+        } else if (!cancelled) {
+          // fallback chain
+          const fallback = await fetchFromMongoFallback(id);
+          if (!cancelled) {
+            setItems(fallback);
+            setSelectedIds({});
+            if (fallback.length === 0) {
+              setFallbackMessage("AI didn't produce any business processes and none were found in Mongo.");
+            }
+          }
         }
       } catch (err: any) {
-        if (!cancelled) setErr(err?.message || "Failed to load matched processes");
+        if (!cancelled) {
+          // On error, try fallback too
+          try {
+            const fallback = await fetchFromMongoFallback(id);
+            if (!cancelled) {
+              setItems(fallback);
+              setSelectedIds({});
+              if (fallback.length === 0) {
+                setErr(err?.message || "Failed to load business processes");
+              } else {
+                setFallbackMessage("Primary fetch failed — showing fallback business processes from Mongo.");
+              }
+            }
+          } catch (e: any) {
+            if (!cancelled) setErr(e?.message || "Failed to load matched processes");
+          }
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -98,7 +159,7 @@ export default function FlowAnalysis() {
     };
   }, [id]);
 
-  // ✅ selection helpers
+  // selection helpers
   const toggleSelect = (bpId: string) => {
     setSelectedIds((s) => ({ ...s, [bpId]: !s[bpId] }));
   };
@@ -136,6 +197,62 @@ export default function FlowAnalysis() {
       alert(e?.message || "Failed to generate scenarios");
     } finally {
       setGenerating(false);
+    }
+  };
+
+  // upload file -> ask server to generate bp (AI). If AI fails or produces nothing,
+  // we will reload matched and fallback to project/all from Mongo.
+  const handleFileUpload = async (file: File) => {
+    if (!file || !id) return;
+
+    setLoading(true);
+    setFallbackMessage(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch(`${API_BASE}/api/projects/${id}/generate-bp`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        throw new Error(`AI generation failed (HTTP ${res.status})`);
+      }
+
+      const genJson = await res.json();
+
+      // After attempting generation, always reload matched and fallback if empty.
+      const matched = await fetchFromMongoFallback(id);
+      setItems(matched);
+      setSelectedIds({});
+      if (matched.length === 0) {
+        setFallbackMessage("AI did not generate any business processes and no fallback records were found in Mongo.");
+      } else {
+        // Prefer generated items if present in response
+        if (Array.isArray(genJson?.items) && genJson.items.length > 0) {
+          const mappedGen = mapToBP(genJson.items);
+          setItems(mappedGen);
+          setSelectedIds({});
+          setFallbackMessage(null);
+        }
+      }
+    } catch (err: any) {
+      // Try fallback even in error case
+      try {
+        const matched = await fetchFromMongoFallback(id);
+        setItems(matched);
+        setSelectedIds({});
+        if (matched.length > 0) {
+          setFallbackMessage("AI generation failed — showing existing business processes from Mongo.");
+        } else {
+          setErr(err?.message || "Failed to regenerate and no fallback items found in Mongo.");
+        }
+      } catch (e: any) {
+        setErr(e?.message || "Failed to regenerate");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -178,25 +295,7 @@ export default function FlowAnalysis() {
           onChange={async (e) => {
             const file = e.target.files?.[0];
             if (!file || !id) return;
-
-            const formData = new FormData();
-            formData.append("file", file);
-
-            try {
-              const res = await fetch(`${API_BASE}/api/projects/${id}/generate-bp`, {
-                method: "POST",
-                body: formData,
-              });
-              if (!res.ok) throw new Error(`HTTP ${res.status}`);
-              await res.json();
-              // reload matched processes
-              const matched = await fetch(`${API_BASE}/api/business/matched/${id}`);
-              const json = await matched.json();
-              const mapped = mapToBP(json.items || []);
-              setItems(mapped);
-            } catch (err: any) {
-              alert(err?.message || "Failed to regenerate");
-            }
+            await handleFileUpload(file);
           }}
         />
 
@@ -220,6 +319,12 @@ export default function FlowAnalysis() {
           {generating ? "Generating…" : "Next"}
         </button>
       </div>
+
+      {fallbackMessage && (
+        <div style={{ marginTop: 12, marginBottom: 12, color: "#92400e" }}>
+          {fallbackMessage}
+        </div>
+      )}
 
       {items && items.length > 0 && (
         <div style={{ marginTop: 12, marginBottom: 12, color: "#064e3b" }}>
