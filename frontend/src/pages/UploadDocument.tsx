@@ -125,6 +125,47 @@ useEffect(() => {
     <div className="project-page">
       {/* push content down so stepper doesn't overlap */}
       <div style={{ marginTop: 80 }} />
+      {/* ===== Hardcoded table (forced visible for testing) ===== */}
+<div style={{ 
+  maxWidth: 900, 
+  margin: "20px auto", 
+  padding: "16px", 
+  background: "#fffbe6",  // pale yellow background so it's obvious
+  border: "2px solid #f59e0b", 
+  borderRadius: "8px" 
+}}>
+  <h3 style={{ marginBottom: "12px", color: "#92400e" }}>Uploaded Documents (Hardcoded)</h3>
+  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+    <thead>
+      <tr style={{ background: "#fde68a" }}>
+        <th style={{ border: "1px solid #fbbf24", padding: "8px", textAlign: "left" }}>Document</th>
+        <th style={{ border: "1px solid #fbbf24", padding: "8px", textAlign: "center" }}>Test Scenarios</th>
+        <th style={{ border: "1px solid #fbbf24", padding: "8px", textAlign: "center" }}>Test Cases</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style={{ border: "1px solid #fcd34d", padding: "8px" }}>requirements.docx</td>
+        <td style={{ border: "1px solid #fcd34d", padding: "8px", textAlign: "center" }}>-</td>
+        <td style={{ border: "1px solid #fcd34d", padding: "8px", textAlign: "center" }}>-</td>
+      </tr>
+      <tr>
+        <td style={{ border: "1px solid #fcd34d", padding: "8px" }}>demo-specs.pdf</td>
+        <td style={{ border: "1px solid #fcd34d", padding: "8px", textAlign: "center" }}>-</td>
+        <td style={{ border: "1px solid #fcd34d", padding: "8px", textAlign: "center" }}>-</td>
+      </tr>
+      <tr>
+        <td style={{ border: "1px solid #fcd34d", padding: "8px" }}>api-guidelines.txt</td>
+        <td style={{ border: "1px solid #fcd34d", padding: "8px", textAlign: "center" }}>-</td>
+        <td style={{ border: "1px solid #fcd34d", padding: "8px", textAlign: "center" }}>-</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+{/* ===== Spacer ===== */}
+<div style={{ height: 50 }} />
+
 
       {/* Project header (keeps your existing header) */}
       <div className="project-header" style={{ maxWidth: 900, margin: "0 auto 16px" }}>
@@ -132,41 +173,7 @@ useEffect(() => {
         <p className="muted">Upload a document to analyze against business processes.</p>
       </div>
 
-      {/* ===== Hardcoded table card ===== */}
-      <div style={{ maxWidth: 900, margin: "0 auto 0" }}>
-        <div className="upload-container" style={{ marginBottom: 0 }}>
-          <h3 style={{ marginBottom: "12px", textAlign: "left" }}>Uploaded Documents</h3>
-          <table className="upload-table" aria-label="Uploaded documents">
-            <thead>
-              <tr>
-                <th style={{ textAlign: "left" }}>Document</th>
-                <th style={{ textAlign: "center" }}>Test Scenarios</th>
-                <th style={{ textAlign: "center" }}>Test Cases</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>requirements.docx</td>
-                <td style={{ textAlign: "center" }}>-</td>
-                <td style={{ textAlign: "center" }}>-</td>
-              </tr>
-              <tr>
-                <td>demo-specs.pdf</td>
-                <td style={{ textAlign: "center" }}>-</td>
-                <td style={{ textAlign: "center" }}>-</td>
-              </tr>
-              <tr>
-                <td>api-guidelines.txt</td>
-                <td style={{ textAlign: "center" }}>-</td>
-                <td style={{ textAlign: "center" }}>-</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
 
-      {/* explicit spacer between table and upload card */}
-      <div style={{ height: 40 }} />
 
       {/* ===== Upload card (centered, matches .upload-container style) ===== */}
       <div style={{ maxWidth: 900, margin: "0 auto 0" }}>
