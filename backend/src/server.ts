@@ -1,3 +1,4 @@
+// src/server.ts
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
@@ -9,37 +10,65 @@ import { debugRouter } from "./routes/debug.js";
 import { projectsRouter } from "./routes/projects.js";
 import generateTestsRouter from "./routes/generateTestCases.js";
 
-
 const app = express();
 
-// Middleware
-app.use(helmet());
+// ------------------- CORS (env-driven) -------------------
+// Read allowed frontend origins from env (comma-separated)
+const FRONTEND_ORIGINS = (process.env.FRONTEND_ORIGINS || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+// Default dev origins
+const defaultOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+];
+
+// Combine and dedupe
+const allowedOrigins = Array.from(new Set([...defaultOrigins, ...FRONTEND_ORIGINS]));
+
+// Log allowed origins for debugging on startup
+console.log("Allowed CORS origins:", allowedOrigins.length ? allowedOrigins : "(none configured, only non-browser requests allowed)");
+
+// Use CORS with a dynamic origin function
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5174","https://exacodaqai-xdtb.onrender.com"],
+    origin: (origin, callback) => {
+      // allow non-browser tools (no origin) such as curl, server-to-server
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      // deny others
+      return callback(new Error("CORS not allowed by server"));
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+
+// ------------------- Other middleware -------------------
+app.use(helmet());
 app.use(express.json());
 
-// Routes
+// ------------------- Routes -------------------
 app.use("/debug", debugRouter);
 app.use("/api/business", businessRouter);
 app.use("/api/projects", projectsRouter);
 app.use("/dashboard", dashboardRouter);
 app.use(generateTestsRouter);
+
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
-// ✅ Start server only once
+// ------------------- Start server -------------------
 (async () => {
   try {
     await connectDB();
 
-    // 👇 Default to 5004 locally, or $PORT on Render
+    // PORT: use Render-provided PORT or fallback to 5004 locally
     const PORT = Number(process.env.PORT || 5004);
 
-    console.log("🔑 OpenAI key prefix:", process.env.OPENAI_API_KEY?.slice(0, 8));
-
+    console.log("🔑 OpenAI key prefix:", process.env.OPENAI_API_KEY?.slice(0, 8) ?? "(none)");
     app.listen(PORT, () => {
       console.log(`🚀 API listening on :${PORT}`);
     });
