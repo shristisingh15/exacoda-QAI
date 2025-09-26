@@ -121,74 +121,89 @@ useEffect(() => {
       setUploading(false);
     }
   };
-
   return (
-    
     <div className="project-page">
-     {/* push content down so stepper doesn't overlap */}
-<div style={{ marginTop: 80, display: "flex", justifyContent: "center" }}>
-</div>
+      {/* push content down so stepper doesn't overlap */}
+      <div style={{ marginTop: 80 }} />
 
-
-      <div className="upload-container" style={{ marginBottom: "20px" }}>
-  <h3 style={{ marginBottom: "12px" }}>Uploaded Documents</h3>
-  <table className="upload-table">
-    <thead>
-      <tr>
-        <th>Document</th>
-        <th>Test Scenarios</th>
-        <th>Test Cases</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>requirements.docx</td>
-        <td>-</td>
-        <td>-</td>
-      </tr>
-      <tr>
-        <td>demo-specs.pdf</td>
-        <td>-</td>
-        <td>-</td>
-      </tr>
-      <tr>
-        <td>api-guidelines.txt</td>
-        <td>-</td>
-        <td>-</td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-
-
-      <div className="project-header">
+      {/* Project header (keeps your existing header) */}
+      <div className="project-header" style={{ maxWidth: 900, margin: "0 auto 16px" }}>
         <h2>Upload Document</h2>
         <p className="muted">Upload a document to analyze against business processes.</p>
       </div>
 
-      {/* Upload card */}
-      <div className="upload-card">
-        <button
-          className="btn btn-primary"
-          disabled={uploading}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          {uploading ? "Processing…" : "Choose File"}
-        </button>
-        <input
-          type="file"
-          ref={fileInputRef}
-          style={{ display: "none" }}
-          accept=".pdf,.doc,.docx,.txt"
-          onChange={handleFileChange}
-        />
+      {/* ===== Hardcoded table card ===== */}
+      <div style={{ maxWidth: 900, margin: "0 auto 0" }}>
+        <div className="upload-container" style={{ marginBottom: 0 }}>
+          <h3 style={{ marginBottom: "12px", textAlign: "left" }}>Uploaded Documents</h3>
+          <table className="upload-table" aria-label="Uploaded documents">
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left" }}>Document</th>
+                <th style={{ textAlign: "center" }}>Test Scenarios</th>
+                <th style={{ textAlign: "center" }}>Test Cases</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>requirements.docx</td>
+                <td style={{ textAlign: "center" }}>-</td>
+                <td style={{ textAlign: "center" }}>-</td>
+              </tr>
+              <tr>
+                <td>demo-specs.pdf</td>
+                <td style={{ textAlign: "center" }}>-</td>
+                <td style={{ textAlign: "center" }}>-</td>
+              </tr>
+              <tr>
+                <td>api-guidelines.txt</td>
+                <td style={{ textAlign: "center" }}>-</td>
+                <td style={{ textAlign: "center" }}>-</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* explicit spacer between table and upload card */}
+      <div style={{ height: 40 }} />
+
+      {/* ===== Upload card (centered, matches .upload-container style) ===== */}
+      <div style={{ maxWidth: 900, margin: "0 auto 0" }}>
+        <div className="upload-container" style={{ textAlign: "center" }}>
+          <h2 style={{ margin: "0 0 8px 0" }}>Upload Documents</h2>
+          <p style={{ marginTop: 0, color: "#6b7280" }}>
+            Upload your functional requirements, specifications, or user stories
+            <br />
+            Drop your files here
+            <br />
+            Supports PDF, DOC, DOCX, TXT files up to 10MB
+          </p>
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            style={{ display: "none" }}
+            accept=".pdf,.doc,.docx,.txt"
+            onChange={handleFileChange}
+          />
+
+          <button
+            className="upload-btn"
+            disabled={uploading}
+            onClick={() => fileInputRef.current?.click()}
+            style={{ marginTop: 12 }}
+          >
+            {uploading ? "Processing…" : "Choose File"}
+          </button>
+        </div>
       </div>
 
       {/* Error */}
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
+      {error && <p style={{ color: "crimson", maxWidth: 900, margin: "12px auto 0" }}>{error}</p>}
 
       {/* History section */}
-      <div className="history-section">
+      <div className="history-section" style={{ maxWidth: 900, margin: "20px auto 80px" }}>
         <h3>History</h3>
         {loading ? (
           <p>Loading…</p>
