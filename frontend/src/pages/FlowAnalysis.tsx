@@ -302,7 +302,6 @@ const handleFileUpload = async (file: File) => {
       </div>
 
       <StepButtons />
-      <hr className="section-divider" />
 
       <div style={{ height: "80px" }} />
 

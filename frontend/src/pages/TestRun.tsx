@@ -149,8 +149,6 @@ const hasCodes = codes.length > 0 && codes.some(c => c.code);
         </div>
       </div>
 
-      <hr className="section-divider" />
-
          <div style={{ height: "80px" }} />
 
       <div style={{ padding: 12 }}>

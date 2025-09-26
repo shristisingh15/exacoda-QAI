@@ -276,8 +276,6 @@ export default function TestCasesPage(): JSX.Element {
         </div>
       </div>
 
-      <hr className="section-divider" />
-
          <div style={{ height: "80px" }} />
 
       {/* Controls */}

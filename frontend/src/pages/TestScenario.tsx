@@ -256,8 +256,7 @@ const [generating, setGenerating] = useState<boolean>(false);
 
       {/* Stepper */}
       <StepButtons />
-      <hr className="section-divider" />
-
+      
          <div style={{ height: "80px" }} />
 
       {/* Controls */}
