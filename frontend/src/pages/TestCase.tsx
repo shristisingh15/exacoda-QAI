@@ -12,9 +12,12 @@ type TestCase = {
   expected_result?: string;
   type?: string;
   scenarioIndex?: number;
+  scenarioId?: string | null;       // 👈 add this
+  scenarioTitle?: string;           // 👈 add this
   _id?: string;
   [k: string]: any;
 };
+
 
 type GeneratedCode = {
   scenarioId: string | null;
@@ -249,6 +252,16 @@ export default function TestCasesPage(): JSX.Element {
 
   const handleBack = () => navigate(-1);
 
+  const groupedByScenario = useMemo(() => {
+  const map: Record<string, TestCase[]> = {};
+  testCases.forEach((tc) => {
+    const key = tc.scenarioTitle || "Unassigned";
+    if (!map[key]) map[key] = [];
+    map[key].push(tc);
+  });
+  return map;
+}, [testCases]);
+
   return (
     <div className="project-page test-scenarios-root" style={{ minHeight: "100vh" }}>
       {/* Topbar */}
@@ -376,58 +389,65 @@ export default function TestCasesPage(): JSX.Element {
               </div>
             </div>
           ) : (
-            testCases.map((tc, idx) => (
-              <article key={idx} className="tile-card" style={{ position: "relative" }}>
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-                  <label style={{ marginTop: 4 }}>
-                    <input
-                      type="checkbox"
-                      checked={!!selectedMap[idx]}
-                      onChange={() => toggleSelect(idx)}
-                      style={{ width: 16, height: 16 }}
-                    />
-                  </label>
+            Object.entries(groupedByScenario).map(([scenarioName, cases]) => (
+  <div key={scenarioName} style={{ marginBottom: 32 }}>
+    <h3 style={{ color: "#0b74ff", marginBottom: 12 }}>
+      Scenario: {scenarioName}
+    </h3>
+    <div className="tiles-grid">
+      {cases.map((tc, idx) => (
+        <article key={tc._id || idx} className="tile-card" style={{ position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <label style={{ marginTop: 4 }}>
+              <input
+                type="checkbox"
+                checked={!!selectedMap[idx]}
+                onChange={() => toggleSelect(idx)}
+                style={{ width: 16, height: 16 }}
+              />
+            </label>
 
-                  <div style={{ flex: 1 }}>
-                    <h3 className="tile-title" style={{ marginTop: 0, marginBottom: 6 }}>
-                      {idx + 1}. {tc.title || `Test Case ${idx + 1}`}
-                    </h3>
+            <div style={{ flex: 1 }}>
+              <h3 className="tile-title" style={{ marginTop: 0, marginBottom: 6 }}>
+                {tc.title || `Test Case`}
+              </h3>
 
-                    {tc.type ? <div style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>{tc.type}</div> : null}
+              {tc.type && <div style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>{tc.type}</div>}
 
-                    {tc.preconditions && tc.preconditions.length > 0 && (
-                      <div style={{ marginBottom: 6 }}>
-                        <strong>Preconditions:</strong>
-                        <ul style={{ marginTop: 6 }}>
-                          {tc.preconditions.map((p: string, i: number) => (
-                            <li key={i} style={{ fontSize: 13 }}>
-                              {p}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {tc.steps && tc.steps.length > 0 && (
-                      <div style={{ marginBottom: 8 }}>
-                        <ol className="tile-steps">
-                          {tc.steps.map((s: string, i: number) => (
-                            <li key={i}>{s}</li>
-                          ))}
-                        </ol>
-                      </div>
-                    )}
-
-                    {tc.expected_result ? (
-                      <div style={{ marginTop: 6 }}>
-                        <strong>Expected:</strong> <span>{tc.expected_result}</span>
-                      </div>
-                    ) : null}
-                  </div>
+              {tc.preconditions && tc.preconditions.length > 0 && (
+                <div style={{ marginBottom: 6 }}>
+                  <strong>Preconditions:</strong>
+                  <ul style={{ marginTop: 6 }}>
+                    {tc.preconditions.map((p: string, i: number) => (
+                      <li key={i} style={{ fontSize: 13 }}>{p}</li>
+                    ))}
+                  </ul>
                 </div>
-              </article>
-            ))
-          )}
+              )}
+
+              {tc.steps && tc.steps.length > 0 && (
+                <div style={{ marginBottom: 8 }}>
+                  <ol className="tile-steps">
+                    {tc.steps.map((s: string, i: number) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+
+              {tc.expected_result && (
+                <div style={{ marginTop: 6 }}>
+                  <strong>Expected:</strong> <span>{tc.expected_result}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+  </div>
+)))}
+
         </div>
       </div>
 

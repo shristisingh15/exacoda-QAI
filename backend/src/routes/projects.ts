@@ -7,6 +7,8 @@ import { Project } from "../models/Project";
 import { ProjectFile } from "../models/ProjectFiles";
 import { BusinessProcess } from "../models/BusinessProcess";
 import { Scenario } from "../models/Scenario";
+import { TestCase } from "../models/TestCase"; // adjust the path if needed
+
 
 export const projectsRouter = Router();
 
@@ -1025,14 +1027,31 @@ ${scenarioText}
       }
       parsedTCs = parsedTCs.concat(additional);
     }
+   // Save test cases into Mongo with scenario references
+let inserted: any[] = [];
+try {
+  inserted = await TestCase.insertMany(parsedTCs.map(tc => ({
+    projectId,
+    scenarioId: tc.scenarioId || null,       // 🔹 link back to scenario
+    scenarioTitle: tc.scenarioTitle || "",   // 🔹 for grouping
+    title: tc.title,
+    description: tc.description || "",
+    steps: Array.isArray(tc.steps) ? tc.steps : [],
+    expected_result: tc.expected_result || "",
+    source: "ai",
+  })));
+} catch (err: any) {
+  console.error("❌ Failed to save test cases:", err);
+}
 
     // 4) Return results
     return res.json({
-      ok: true,
-      codes: outputs,
-      testCases: parsedTCs,
-      raw: rawTC,
-    });
+  ok: true,
+  codes: outputs,
+  testCases: inserted.length > 0 ? inserted : parsedTCs,
+  raw: rawTC,
+});
+
   } catch (err: any) {
     console.error("generate-tests failed:", err);
     return res.status(500).json({
