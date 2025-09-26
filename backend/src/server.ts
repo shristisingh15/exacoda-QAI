@@ -28,18 +28,21 @@ const defaultOrigins = [
 // Combine and dedupe
 const allowedOrigins = Array.from(new Set([...defaultOrigins, ...FRONTEND_ORIGINS]));
 
-// Log allowed origins for debugging on startup
-console.log("Allowed CORS origins:", allowedOrigins.length ? allowedOrigins : "(none configured, only non-browser requests allowed)");
+// Debug log
+console.log("Allowed CORS origins:", allowedOrigins);
 
-// Use CORS with a dynamic origin function
+// Use CORS with dynamic origin function that DOES NOT throw
 app.use(
   cors({
     origin: (origin, callback) => {
-      // allow non-browser tools (no origin) such as curl, server-to-server
+      // allow server-side tools (curl) — no origin
       if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      // deny others
-      return callback(new Error("CORS not allowed by server"));
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      // not allowed -> don't throw an error, just deny
+      console.warn(`CORS: rejecting origin ${origin}`);
+      return callback(null, false);
     },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -50,7 +53,7 @@ app.use(
 app.use(helmet());
 app.use(express.json());
 
-// ------------------- Routes -------------------
+// Routes
 app.use("/debug", debugRouter);
 app.use("/api/business", businessRouter);
 app.use("/api/projects", projectsRouter);
@@ -60,14 +63,11 @@ app.use(generateTestsRouter);
 // Health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
-// ------------------- Start server -------------------
+// Start server
 (async () => {
   try {
     await connectDB();
-
-    // PORT: use Render-provided PORT or fallback to 5004 locally
     const PORT = Number(process.env.PORT || 5004);
-
     console.log("🔑 OpenAI key prefix:", process.env.OPENAI_API_KEY?.slice(0, 8) ?? "(none)");
     app.listen(PORT, () => {
       console.log(`🚀 API listening on :${PORT}`);
