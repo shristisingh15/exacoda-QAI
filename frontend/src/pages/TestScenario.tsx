@@ -258,6 +258,8 @@ const [generating, setGenerating] = useState<boolean>(false);
       <StepButtons />
       <hr className="section-divider" />
 
+         <div style={{ height: "80px" }} />
+
       {/* Controls */}
       <div className="controls-row">
         <button className="scenario-btn disabled-btn" disabled>

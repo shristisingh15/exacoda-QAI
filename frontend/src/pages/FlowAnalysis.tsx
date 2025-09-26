@@ -304,6 +304,9 @@ const handleFileUpload = async (file: File) => {
       <StepButtons />
       <hr className="section-divider" />
 
+      <div style={{ height: "80px" }} />
+
+
       <div className="controls-row">
         <button
           className="btn btn-primary"

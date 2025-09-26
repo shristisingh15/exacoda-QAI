@@ -278,6 +278,8 @@ export default function TestCasesPage(): JSX.Element {
 
       <hr className="section-divider" />
 
+         <div style={{ height: "80px" }} />
+
       {/* Controls */}
       <div className="controls-row" style={{ alignItems: "center" }}>
         <button className="scenario-btn disabled-btn" disabled>

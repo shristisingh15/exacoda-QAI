@@ -151,6 +151,8 @@ const hasCodes = codes.length > 0 && codes.some(c => c.code);
 
       <hr className="section-divider" />
 
+         <div style={{ height: "80px" }} />
+
       <div style={{ padding: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <div style={{ fontSize: 14 }}>
