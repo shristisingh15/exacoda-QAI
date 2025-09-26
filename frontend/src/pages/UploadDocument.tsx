@@ -127,92 +127,31 @@ useEffect(() => {
       <div style={{ marginTop: "32px" }}>
       </div>
 
-      {/* Hardcoded table with borders */}
-<div style={{ marginTop: "32px", marginBottom: "24px" }}>
+      <div className="upload-container" style={{ marginBottom: "20px" }}>
   <h3 style={{ marginBottom: "12px" }}>Uploaded Documents</h3>
-  <table
-    style={{
-      width: "100%",
-      borderCollapse: "collapse",
-      border: "1px solid #d1d5db", // light gray border
-    }}
-  >
+  <table className="upload-table">
     <thead>
-      <tr style={{ backgroundColor: "#f3f4f6" }}>
-        <th
-          style={{
-            padding: "10px 12px",
-            border: "1px solid #d1d5db",
-            textAlign: "left",
-          }}
-        >
-          Document
-        </th>
-        <th
-          style={{
-            padding: "10px 12px",
-            border: "1px solid #d1d5db",
-            textAlign: "center",
-          }}
-        >
-          Test Scenarios
-        </th>
-        <th
-          style={{
-            padding: "10px 12px",
-            border: "1px solid #d1d5db",
-            textAlign: "center",
-          }}
-        >
-          Test Cases
-        </th>
+      <tr>
+        <th>Document</th>
+        <th>Test Scenarios</th>
+        <th>Test Cases</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td style={{ padding: "10px 12px", border: "1px solid #d1d5db" }}>
-          requirements.docx
-        </td>
-        <td
-          style={{ padding: "10px 12px", border: "1px solid #d1d5db", textAlign: "center" }}
-        >
-          -
-        </td>
-        <td
-          style={{ padding: "10px 12px", border: "1px solid #d1d5db", textAlign: "center" }}
-        >
-          -
-        </td>
+        <td>requirements.docx</td>
+        <td>-</td>
+        <td>-</td>
       </tr>
       <tr>
-        <td style={{ padding: "10px 12px", border: "1px solid #d1d5db" }}>
-          demo-specs.pdf
-        </td>
-        <td
-          style={{ padding: "10px 12px", border: "1px solid #d1d5db", textAlign: "center" }}
-        >
-          -
-        </td>
-        <td
-          style={{ padding: "10px 12px", border: "1px solid #d1d5db", textAlign: "center" }}
-        >
-          -
-        </td>
+        <td>demo-specs.pdf</td>
+        <td>-</td>
+        <td>-</td>
       </tr>
       <tr>
-        <td style={{ padding: "10px 12px", border: "1px solid #d1d5db" }}>
-          api-guidelines.txt
-        </td>
-        <td
-          style={{ padding: "10px 12px", border: "1px solid #d1d5db", textAlign: "center" }}
-        >
-          -
-        </td>
-        <td
-          style={{ padding: "10px 12px", border: "1px solid #d1d5db", textAlign: "center" }}
-        >
-          -
-        </td>
+        <td>api-guidelines.txt</td>
+        <td>-</td>
+        <td>-</td>
       </tr>
     </tbody>
   </table>
