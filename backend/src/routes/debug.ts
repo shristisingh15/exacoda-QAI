@@ -11,7 +11,7 @@ debugRouter.get("/db", async (_req, res) => {
 
   const bpCount   = await conn.collection("businessProcesses").countDocuments().catch(() => null);
   const lpCount   = await conn.collection("loanProcesses").countDocuments().catch(() => null);
-  const projCount = await conn.collection("projects").countDocuments().catch(() => null);
+  const projCount = await conn.collection("projects_1").countDocuments().catch(() => null);
   const fileCount = await conn.collection("projectFiles").countDocuments().catch(() => null);
 
   // Get a sample of 2 uploaded files (without binary data)
