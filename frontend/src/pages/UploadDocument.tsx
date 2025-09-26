@@ -125,8 +125,10 @@ useEffect(() => {
   return (
     
     <div className="project-page">
-      <div style={{ marginTop: "32px" }}>
-      </div>
+     {/* push content down so stepper doesn't overlap */}
+<div style={{ marginTop: 80, display: "flex", justifyContent: "center" }}>
+</div>
+
 
       <div className="upload-container" style={{ marginBottom: "20px" }}>
   <h3 style={{ marginBottom: "12px" }}>Uploaded Documents</h3>

@@ -1,6 +1,8 @@
 /* frontend/src/pages/UploadDocument.css */
 
 .upload-container {
+    position:relative;
+    z-index: 20;
   max-width: 600px;
   margin: 60px auto;
   padding: 24px;
@@ -72,6 +74,7 @@
    =========================== */
 .upload-table {
   width: 100%;
+  box-sizing: border-box;
   border-collapse: collapse;
   margin-bottom: 24px;
   font-family: "Inter", Arial, sans-serif;
