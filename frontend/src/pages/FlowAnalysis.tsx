@@ -67,7 +67,7 @@ export default function FlowAnalysis() {
           setFallbackMessage(
             i === 0
               ? null
-              : `AI did not return processes — showing fallback from Mongo (source: ${new URL(
+              : ` (source: ${new URL(
                   tryEndpoints[i]
                 ).pathname}).`
           );
