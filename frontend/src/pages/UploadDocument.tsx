@@ -1,3 +1,4 @@
+// src/pages/UploadDocument.tsx
 import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
@@ -10,8 +11,14 @@ type ProjectFile = {
   uploadedAt: string;
 };
 
-export default function UploadDocument() {
-  const { id } = useParams<{ id: string }>();
+type UploadDocumentProps = {
+  setStep?: React.Dispatch<React.SetStateAction<number>>;
+  projectId?: string;
+};
+
+export default function UploadDocument({ setStep, projectId }: UploadDocumentProps) {
+  const params = useParams<{ id: string }>();
+  const id = projectId || params.id; // prefer prop, fallback to route param
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -39,39 +46,42 @@ export default function UploadDocument() {
     })();
   }, [id]);
 
-  // handle Choose File -> works like regenerate
-  // handle Choose File (new: generate business processes)
-const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  setError(null);
-  const file = e.target.files?.[0];
-  if (!file || !id) return;
+  // handle Choose File -> call OpenAI + store results in Mongo
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    setError(null);
+    const file = e.target.files?.[0];
+    if (!file || !id) return;
 
-  setUploading(true);
-  try {
-    const formData = new FormData();
-    formData.append("file", file);
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
 
-    const res = await fetch(`${API_BASE}/api/projects/${id}/generate-bp`, {
-      method: "POST",
-      body: formData,
-    });
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(`Upload failed: ${txt || res.status}`);
+      const res = await fetch(`${API_BASE}/api/projects/${id}/generate-bp`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`Upload failed: ${txt || res.status}`);
+      }
+      const json = await res.json();
+      console.log("✅ generate-bp returned:", json);
+
+      // if being used inside Flow.tsx, go to next step
+      if (setStep) {
+        setStep(2);
+      } else {
+        // if used standalone, redirect to analysis page
+        navigate(`/project/${id}/analysis`);
+      }
+    } catch (err: any) {
+      console.error("❌ generate-bp failed:", err);
+      setError(err?.message || "Upload failed");
+    } finally {
+      setUploading(false);
     }
-    const json = await res.json();
-    console.log("generate-bp returned:", json);
-
-    // redirect to flow analysis (it will fetch from Mongo)
-    navigate(`/project/${id}/analysis`);
-  } catch (err: any) {
-    console.error("generate-bp failed:", err);
-    setError(err?.message || "Upload failed");
-  } finally {
-    setUploading(false);
-  }
-};
-
+  };
 
   return (
     <div className="project-page">
