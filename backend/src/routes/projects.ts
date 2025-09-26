@@ -592,10 +592,6 @@ if (aiText) {
   }
 });
 
-
-
-
-//
 // POST /projects/:id/generate-scenarios
 // - body: { bpIds: string[], prompt?: string }
 // - returns: saved scenario docs
@@ -635,10 +631,8 @@ projectsRouter.post("/:id/generate-scenarios", upload.none(), async (req, res) =
           if (result?.value) return result.value;
         }
       } catch (err) {
-        // fallthrough to fallback
         console.warn("extractTextFromBuffer helper: primary extract failed:", (err as Error).message || err);
       }
-      // fallback: raw utf8 salvage, cleaned
       const raw = buffer.toString("utf8");
       const cleaned = raw.replace(/[^\x09\x0A\x0D\x20-\x7E]+/g, " ");
       return cleaned.slice(0, 200000);
@@ -646,21 +640,19 @@ projectsRouter.post("/:id/generate-scenarios", upload.none(), async (req, res) =
 
     let buffer: Buffer | undefined;
 
-if (latestFile?.data) {
-  if (latestFile.data instanceof Buffer) {
-    buffer = latestFile.data;
-  } else if ("buffer" in latestFile.data) {
-    // handle mongodb.Binary
-    buffer = Buffer.from(latestFile.data.buffer);
-  } else {
-    // fallback for Uint8Array or other
-    buffer = Buffer.from(latestFile.data as Uint8Array);
-  }
-}
+    if (latestFile?.data) {
+      if (latestFile.data instanceof Buffer) {
+        buffer = latestFile.data;
+      } else if ("buffer" in latestFile.data) {
+        buffer = Buffer.from(latestFile.data.buffer);
+      } else {
+        buffer = Buffer.from(latestFile.data as Uint8Array);
+      }
+    }
 
-const docText = buffer && latestFile
-  ? await extractTextFromBuffer(buffer, latestFile.filename, latestFile.mimetype)
-  : "";
+    const docText = buffer && latestFile
+      ? await extractTextFromBuffer(buffer, latestFile.filename, latestFile.mimetype)
+      : "";
 
     // build LLM prompt
     const bpLines = bps
@@ -670,7 +662,7 @@ const docText = buffer && latestFile
     const docSnippet = docText ? (docText.length > 8000 ? docText.slice(0, 8000) : docText) : "";
 
     const instructions = [
-      `You are an expert QA engineer. Given the project info as documents and a list of selected BUSINESS PROCESSES, generate atleast 5 business scenario , testable manual test scenarios.`,
+      `You are an expert QA engineer. Given the project info as documents and a list of selected BUSINESS PROCESSES, generate at least 5 testable manual test scenarios.`,
       `Output: a JSON array only. Each element must be an object with keys: "title" (string), "description" (string), "steps" (array of strings), "expected_result" (string).`,
       `Do not include any commentary; return valid JSON only.`,
     ].join("\n\n");
@@ -685,9 +677,9 @@ const docText = buffer && latestFile
       promptOverride ? `Additional instructions:\n${promptOverride}` : undefined,
     ].filter(Boolean).join("\n\n");
 
-    console.log("generate-scenarios: sending prompt to OpenAI (truncated preview):", promptParts.slice(0, 800));
+    console.log("generate-scenarios: sending prompt to OpenAI (preview):", promptParts.slice(0, 800));
 
-    // call OpenAI via your existing client
+    // call OpenAI
     let aiText2 = "";
     try {
       const response = await client.chat.completions.create({
@@ -706,13 +698,11 @@ const docText = buffer && latestFile
     // try parsing JSON robustly
     let parsed: any[] = [];
     try {
-      // strip fenced blocks if present
       const fenceMatch = aiText2.match(/```json([\s\S]*?)```/i);
       const jsonText = fenceMatch ? fenceMatch[1].trim() : aiText2.trim();
       parsed = JSON.parse(jsonText);
       if (!Array.isArray(parsed)) throw new Error("Parsed value is not an array");
     } catch (err) {
-      // try to find first [ ... ] block
       const start = aiText2.indexOf("[");
       const end = aiText2.lastIndexOf("]");
       if (start >= 0 && end > start) {
@@ -730,16 +720,21 @@ const docText = buffer && latestFile
       return res.status(500).json({ ok: false, message: "Failed to parse scenarios from OpenAI", raw: aiText2 });
     }
 
-    // sanitize and save scenarios
-    const docsToInsert = parsed.map((s: any) => {
-      return {
-        projectId,
-        title: s.title || s.name || "Untitled scenario",
-        description: s.description || s.summary || "",
-        steps: Array.isArray(s.steps) ? s.steps.map(String) : (s.steps ? [String(s.steps)] : []),
-        expected_result: s.expected_result || s.expectedResult || s.expected || "",
-        source: "ai",
-      };
+    // sanitize and expand for each business process
+    const docsToInsert: any[] = [];
+    bps.forEach((bp) => {
+      parsed.forEach((s: any) => {
+        docsToInsert.push({
+          projectId,
+          businessProcessId: bp._id,
+          businessProcessName: bp.name,
+          title: s.title || s.name || "Untitled scenario",
+          description: s.description || s.summary || "",
+          steps: Array.isArray(s.steps) ? s.steps.map(String) : (s.steps ? [String(s.steps)] : []),
+          expected_result: s.expected_result || s.expectedResult || s.expected || "",
+          source: "ai",
+        });
+      });
     });
 
     const inserted = await Scenario.insertMany(docsToInsert);
@@ -750,6 +745,7 @@ const docText = buffer && latestFile
     return res.status(500).json({ ok: false, message: "Internal server error", error: String(err?.message || err) });
   }
 });
+
 
 // ---------- REPLACED/ENHANCED: POST /projects/:id/generate-tests ----------
 //

@@ -228,6 +228,18 @@ const [generating, setGenerating] = useState<boolean>(false);
     return { recentScenarios: recent, previousScenarios: prev };
   }, [scenarios]);
 
+  // 🔹 Group scenarios by business process
+const groupedByBP = useMemo(() => {
+  const map: Record<string, Scenario[]> = {};
+  scenarios.forEach((s) => {
+    const key = (s as any).businessProcessName || "Unassigned";
+    if (!map[key]) map[key] = [];
+    map[key].push(s);
+  });
+  return map;
+}, [scenarios]);
+
+
   return (
     <div className="project-page test-scenarios-root" style={{ minHeight: "100vh" }}>
       {/* Topbar */}
@@ -300,37 +312,47 @@ const [generating, setGenerating] = useState<boolean>(false);
         </div>
       </div>
 
-      {/* Recent Scenarios */}
-      <div className="tiles-section">
-        <h3 className="tiles-section-title">Recent Scenarios</h3>
-        <div className="tiles-grid">
-          {recentScenarios.map((s, idx) => (
-            <article key={s._id} className="tile-card">
-              <div className="tile-header">
-                <label className="tile-select">
-                  <input
-                    type="checkbox"
-                    checked={!!selected[s._id!]}
-                    onChange={() => toggleSelect(s._id!)}
-                  />
-                </label>
-                <h3 className="tile-title">{idx + 1}. {s.title}</h3>
+      {/* Scenarios grouped by Business Process */}
+<div className="tiles-section">
+  <h3 className="tiles-section-title">Generated Test Scenarios</h3>
+
+  {Object.entries(groupedByBP).map(([bpName, bpScenarios]) => (
+    <div key={bpName} style={{ marginBottom: 32 }}>
+      <h3 style={{ marginBottom: 12, color: "#0b74ff" }}>
+        Business Process: {bpName}
+      </h3>
+
+      <div className="tiles-grid">
+        {bpScenarios.map((s, idx) => (
+          <article key={s._id} className="tile-card">
+            <div className="tile-header">
+              <label className="tile-select">
+                <input
+                  type="checkbox"
+                  checked={!!selected[s._id!]}
+                  onChange={() => toggleSelect(s._id!)}
+                />
+              </label>
+              <h3 className="tile-title">{idx + 1}. {s.title}</h3>
+            </div>
+            {s.description && <p className="tile-desc">{s.description}</p>}
+            {s.steps && (
+              <ol className="tile-steps">
+                {s.steps.map((st, i) => <li key={i}>{st}</li>)}
+              </ol>
+            )}
+            {s.expected_result && (
+              <div className="tile-expected">
+                <strong>Expected:</strong> {s.expected_result}
               </div>
-              {s.description && <p className="tile-desc">{s.description}</p>}
-              {s.steps && (
-                <ol className="tile-steps">
-                  {s.steps.map((st, i) => <li key={i}>{st}</li>)}
-                </ol>
-              )}
-              {s.expected_result && (
-                <div className="tile-expected">
-                  <strong>Expected:</strong> {s.expected_result}
-                </div>
-              )}
-            </article>
-          ))}
-        </div>
+            )}
+          </article>
+        ))}
       </div>
+    </div>
+  ))}
+</div>
+
 
       {/* Previous Scenarios */}
       {previousScenarios.length > 0 && (
